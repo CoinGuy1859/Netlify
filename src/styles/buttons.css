@@ -1,0 +1,173 @@
+/* styles/buttons.css */
+/* All button styles */
+
+/* Primary and secondary buttons */
+.primary-button,
+.secondary-button {
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 18px;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  text-align: center;
+}
+
+.primary-button {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.secondary-button {
+  background-color: #e2e8f0;
+  color: var(--color-text);
+  border: 1px solid #cbd5e0;
+}
+
+.secondary-button:hover {
+  background-color: #cbd5e0;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Option buttons for quiz answers */
+.option-button {
+  width: 100%;
+  text-align: left;
+  padding: 16px 24px;
+  border: 2px solid #cbd5e0;
+  border-radius: 8px;
+  background-color: white;
+  transition: all 0.2s;
+  cursor: pointer;
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.option-button:hover {
+  background-color: var(--color-primary-lightest);
+  border-color: var(--color-primary-light);
+}
+
+.option-button-selected {
+  width: 100%;
+  text-align: left;
+  padding: 16px 24px;
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  background-color: var(--color-primary-lightest);
+  cursor: pointer;
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Call to action buttons */
+.cta-button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px 24px;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 0 auto;
+  font-size: 18px;
+  background-color: var(--color-success);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cta-button:hover {
+  background-color: var(--color-success-dark);
+}
+
+/* Save, print, and copy buttons */
+.save-button,
+.print-button,
+.copy-button,
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 20px;
+  background-color: var(--color-background-light);
+  color: var(--color-text-light);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 8px;
+}
+
+.save-button:hover,
+.print-button:hover,
+.copy-button:hover,
+.action-button:hover {
+  background-color: var(--color-border-light);
+}
+
+.save-button svg,
+.print-button svg,
+.copy-button svg,
+.action-button svg {
+  margin-right: 5px;
+}
+
+/* Number increment/decrement buttons */
+.number-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e0;
+  background-color: #f7fafc;
+  color: var(--color-text);
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.number-btn:hover {
+  background-color: #edf2f7;
+}
+
+.number-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button groups */
+.button-group {
+  position: relative;
+  z-index: 10;
+  margin-top: 30px;
+  display: flex;
+  gap: 10px;
+}

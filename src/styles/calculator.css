@@ -1,0 +1,127 @@
+/* styles/calculator.css */
+/* Specific styles for the calculator app */
+
+/* Loading Animation Styles */
+.calculation-loading {
+  padding: 20px;
+  margin: 20px 0;
+  background-color: #ebf8ff;
+  border-radius: 8px;
+  border: 1px solid #bee3f8;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(66, 153, 225, 0.3);
+  border-radius: 50%;
+  border-top: 3px solid #4299e1;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+/* Placeholder content styles for loading state */
+.placeholder-content {
+  background-color: #f7fafc;
+  border-radius: 6px;
+  animation: pulse 1.5s infinite alternate;
+}
+
+/* Skeleton loading lines for text content */
+.skeleton-line {
+  height: 16px;
+  margin-bottom: 8px;
+  background-color: #edf2f7;
+  border-radius: 4px;
+  animation: pulse 1.5s infinite alternate;
+}
+
+.skeleton-line.short {
+  width: 40%;
+}
+
+.skeleton-line.medium {
+  width: 60%;
+}
+
+.skeleton-line.long {
+  width: 80%;
+}
+
+/* Recommendation Card Loading Placeholder */
+.recommendation-card-placeholder {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+  background-color: white;
+}
+
+.recommendation-header-placeholder {
+  height: 100px;
+  background-color: #f7fafc;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+}
+
+.recommendation-icon-placeholder {
+  width: 80px;
+  height: 80px;
+  background-color: #edf2f7;
+  border-radius: 12px;
+  margin-right: 20px;
+}
+
+.recommendation-title-placeholder {
+  flex: 1;
+}
+
+.pricing-placeholder {
+  height: 150px;
+  background-color: #f7fafc;
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.action-placeholder {
+  height: 120px;
+  background-color: #f7fafc;
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Calculator Panel */
+.calculator-panel {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.membership-tools {
+  margin-bottom: 30px;
+}
+
+/* Step Container */
+.step-container {
+  padding: 20px;
+}
+
+/* No Visits Message */
+.no-visits-message {
+  text-align: center;
+  padding: 30px 20px;
+  background-color: #ebf8ff;
+  border-radius: 12px;
+  margin: 40px 0;
+  border: 1px solid #90cdf4;
+}

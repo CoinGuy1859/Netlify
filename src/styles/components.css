@@ -1,0 +1,232 @@
+/* styles/components.css */
+/* Component-specific styles */
+
+/* Recommendation card */
+.recommendation-card {
+  position: relative;
+  border: 2px solid var(--color-primary);
+  border-radius: 8px;
+  background-color: white;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.recommendation-type {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background-color: var(--color-primary-lightest);
+  border-bottom: 1px solid var(--color-primary-light);
+}
+
+.recommendation-icon {
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recommendation-title {
+  flex: 1;
+}
+
+.recommendation-label {
+  display: block;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--color-primary);
+  margin-bottom: 5px;
+  letter-spacing: 1px;
+}
+
+.recommendation-title h3 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--color-text);
+}
+
+.recommendation-description {
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.recommendation-action {
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* Calculator mode toggle */
+.calculator-mode-toggle {
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 24px;
+}
+
+.calculator-modes {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.calculator-mode-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 280px;
+  height: 220px;
+  padding: 24px;
+  background-color: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  transition: all 0.3s;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-mode-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary-light);
+}
+
+.calculator-mode-button.active {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-lightest);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.calculator-mode-button .icon-container {
+  width: 80px;
+  height: 80px;
+  background-color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-mode-button .icon-container svg {
+  width: 40px;
+  height: 40px;
+  color: var(--color-text-light);
+}
+
+.calculator-mode-button.active .icon-container svg {
+  color: var(--color-primary);
+}
+
+.calculator-mode-button .button-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 8px;
+  text-align: center;
+  display: block;
+  width: 100%;
+}
+
+.calculator-mode-button .button-description {
+  font-size: 14px;
+  color: var(--color-text-lighter);
+  text-align: center;
+  line-height: 1.4;
+  display: block;
+  width: 100%;
+}
+
+/* Quiz container */
+.quiz-container {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  margin-top: 24px;
+}
+
+.quiz-options button {
+  padding: 16px 20px;
+  font-size: 17px;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+  font-weight: 500;
+  color: #334155;
+  position: relative;
+  padding-right: 40px;
+}
+
+.quiz-options button:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-options button:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.3);
+}
+
+/* Logos & Images */
+img {
+  display: block;
+  margin: 10px auto;
+  max-width: 500px;
+  width: 100%;
+  height: auto;
+}
+
+/* Logo base styles */
+.logo-icon {
+  width: 40px !important;
+  height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.logo-header {
+  max-width: 200px !important;
+  height: auto !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.science-header,
+.kids-header,
+.main-header {
+  max-width: 200px !important;
+  height: auto !important;
+}
+
+.ticket-icon {
+  width: 24px !important;
+  height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Button content styling */
+.button-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
