@@ -5,7 +5,7 @@ import { AdmissionCostCalculator } from "./AdmissionCostCalculator";
 /**
  * Discount Service
  * Handles all discount-related operations including eligibility checks and price calculations
- * Updated with improved error handling and visit counting
+ * Updated with military discount support and improved error handling
  */
 export const DiscountService = {
   /**
@@ -29,6 +29,11 @@ export const DiscountService = {
       return false;
     }
 
+    // Special case: ScienceBasic is never eligible for promotional discounts
+    if (membershipType === "ScienceBasic") {
+      return false;
+    }
+
     // Special case: Science + Kids membership has its own eligibility rules
     if (membershipType === "ScienceKids" && memberCount >= minimumMembers) {
       return eligibleLocations.includes(location);
@@ -46,21 +51,62 @@ export const DiscountService = {
    * @param {number} memberCount - Number of family members
    * @param {string} location - Primary membership location
    * @param {string} membershipType - Type of membership (optional)
+   * @param {boolean} isMilitary - Whether the customer is military (optional)
    * @returns {number} Price after applicable discounts
    */
-  applyDiscount(originalPrice, memberCount, location, membershipType = null) {
+  applyDiscount(originalPrice, memberCount, location, membershipType = null, isMilitary = false) {
     if (!originalPrice || originalPrice <= 0) {
       console.warn("Invalid price in applyDiscount:", originalPrice);
       return 0;
     }
-    
+
+    let discountedPrice = originalPrice;
+
+    // Apply promotional discount if eligible
     if (this.isEligibleForDiscount(memberCount, location, membershipType)) {
       const { currentRate } = PricingConfig.Discounts.membershipDiscount;
-      return Math.round(originalPrice * (1 - currentRate));
+      discountedPrice = Math.round(discountedPrice * (1 - currentRate));
     }
 
-    // Return original price if not eligible
-    return originalPrice;
+    // Apply military discount if applicable
+    if (isMilitary && membershipType !== "ScienceBasic") {
+      const militaryDiscount = this.getMilitaryDiscount(membershipType || location);
+      discountedPrice = Math.max(0, discountedPrice - militaryDiscount);
+    }
+
+    return discountedPrice;
+  },
+
+  /**
+   * Get military discount amount based on membership type/location
+   * @param {string} membershipTypeOrLocation - Membership type or location code
+   * @returns {number} Military discount amount in dollars
+   */
+  getMilitaryDiscount(membershipTypeOrLocation) {
+    const { militaryDiscount } = PricingConfig.Discounts;
+
+    // DPKR gets higher military discount
+    if (membershipTypeOrLocation === "DPKR") {
+      return militaryDiscount.dpkrDiscount; // $30
+    }
+
+    // All other locations get standard military discount
+    return militaryDiscount.otherLocationsDiscount; // $20
+  },
+
+  /**
+   * Check if customer is eligible for military discount
+   * @param {boolean} isMilitary - Whether the customer is military
+   * @param {string} membershipType - Type of membership (optional)
+   * @returns {boolean} Whether eligible for military discount
+   */
+  isEligibleForMilitaryDiscount(isMilitary, membershipType = null) {
+    // Military discount not available for ScienceBasic or Welcome Program
+    if (membershipType === "ScienceBasic" || membershipType === "Welcome") {
+      return false;
+    }
+
+    return isMilitary;
   },
 
   /**
@@ -247,7 +293,6 @@ export const DiscountService = {
         discountedChildren *
         (regularChildDPKHPrice - discountedChildDPKHPrice);
 
-      // Total DPKH savings
       const dpkhTotalSaving = dpkhAdultSaving + dpkhChildSaving;
 
       if (dpkhTotalSaving > 0) {
@@ -323,8 +368,12 @@ export const DiscountService = {
       const dpkrTotalSaving = dpkrAdultSaving + dpkrChildSaving;
 
       if (dpkrTotalSaving > 0) {
+        const locationLabel = isRichmondResident
+          ? "Kids-Rockingham (Richmond County Resident)"
+          : "Kids-Rockingham";
+
         savingsBreakdown.push({
-          label: `Kids-Rockingham guest discounts (${Math.round(
+          label: `${locationLabel} guest discounts (${Math.round(
             dpkrDiscountRate * 100
           )}% off)`,
           cost: -dpkrTotalSaving,
@@ -345,62 +394,54 @@ export const DiscountService = {
       }
     }
 
-    // Ensure totalVisits is calculated correctly and consistently
-    const totalVisits = cappedScienceVisits + cappedDPKHVisits + cappedDPKRVisits;
-    
-    // Log the results for debugging
-    console.log("Guest savings calculation - results:", { 
-      totalSavings,
-      breakdownCount: savingsBreakdown.length,
-      totalVisits,
-      primaryLocation
-    });
-
     return {
       total: totalSavings,
       breakdown: savingsBreakdown,
-      primaryLocation: primaryLocation,
-      totalVisits: totalVisits, // Make sure to include totalVisits in the result
     };
   },
 
   /**
-   * Get discount eligibility message
+   * Get discount eligibility message for display
    * @param {number} memberCount - Number of family members
    * @param {string} location - Primary membership location
    * @param {string} membershipType - Type of membership (optional)
-   * @returns {string} Eligibility message
+   * @param {boolean} isMilitary - Whether customer is military (optional)
+   * @returns {string} Human-readable eligibility message
    */
-  getEligibilityMessage(memberCount, location, membershipType = null) {
-    const { minimumMembers, currentRate } =
-      PricingConfig.Discounts.membershipDiscount;
-    const { discountMap } = PricingConfig.GuestDiscounts;
-    const discountPercent = Math.round(currentRate * 100);
+  getDiscountMessage(memberCount, location, membershipType = null, isMilitary = false) {
+    const messages = [];
 
-    if (!this.isEligibleForDiscount(memberCount, location, membershipType)) {
-      if (memberCount < minimumMembers) {
-        return `Not eligible for discount: requires ${minimumMembers} or more people.`;
+    // Check promotional discount eligibility
+    if (this.isEligibleForDiscount(memberCount, location, membershipType)) {
+      const { currentRate } = PricingConfig.Discounts.membershipDiscount;
+      const discountPercent = Math.round(currentRate * 100);
+      
+      if (discountPercent > 0) {
+        const { discountMap } = PricingConfig.GuestDiscounts;
+        const guestDiscountDetails = Object.entries(discountMap[location] || {})
+          .map(([visitLocation, rate]) => {
+            const discountPercentage = Math.round(rate * 100);
+            const isHomeLocation = visitLocation === location;
+            const { homeMuseum: homeMuseumLimit, otherMuseums: otherMuseumsLimit } =
+              PricingConfig.GuestDiscounts.discountLimits;
+            const limit = isHomeLocation ? homeMuseumLimit : otherMuseumsLimit;
+            return `${discountPercentage}% off for up to ${limit} guests at ${visitLocation}`;
+          })
+          .join(", ");
+
+        messages.push(`Eligible for ${discountPercent}% membership discount! Guest admission benefits: ${guestDiscountDetails}.`);
       }
-      if (location === "DPKR") {
-        return "Not eligible for discount: Rockingham memberships do not qualify for the promotional discount.";
-      }
-      return "Not eligible for current discount.";
+    } else {
+      messages.push("Not eligible for current promotional discount.");
     }
 
-    // Construct guest discount details with limits
-    const { homeMuseum: homeMuseumLimit, otherMuseums: otherMuseumsLimit } =
-      PricingConfig.GuestDiscounts.discountLimits;
+    // Check military discount eligibility
+    if (this.isEligibleForMilitaryDiscount(isMilitary, membershipType)) {
+      const militaryDiscount = this.getMilitaryDiscount(membershipType || location);
+      messages.push(`Military discount: $${militaryDiscount} off membership price.`);
+    }
 
-    const guestDiscountDetails = Object.entries(discountMap[location] || {})
-      .map(([visitLocation, rate]) => {
-        const discountPercentage = Math.round(rate * 100);
-        const isHomeLocation = visitLocation === location;
-        const limit = isHomeLocation ? homeMuseumLimit : otherMuseumsLimit;
-        return `${discountPercentage}% off for up to ${limit} guests at ${visitLocation}`;
-      })
-      .join(", ");
-
-    return `Eligible for ${discountPercent}% membership discount! Guest admission benefits: ${guestDiscountDetails}.`;
+    return messages.join(" ");
   },
 
   /**
@@ -528,7 +569,9 @@ export const DiscountService = {
           welcomeConfig.maxChildren
         } children) with access to ${this.getLocationLabel(
           location
-        )}. $3 admission per person at other locations.`,
+        )}. Includes same-day admission to ${this.getLocationLabel(
+          location
+        )}.`,
         costBreakdown: {
           items: [
             {
@@ -536,69 +579,57 @@ export const DiscountService = {
                 location
               )})`,
               cost: basePrice,
-              details: `Annual membership for up to ${welcomeConfig.maxPeople} people`,
+              details: `${totalPeople} people included`,
             },
             {
               label: "Parking at Science",
               cost: parkingCost,
               details:
-                scienceVisits > 0
-                  ? `${scienceVisits} visits × $8 per visit`
+                parkingCost > 0
+                  ? `$8 flat rate × ${scienceVisits} visits`
                   : null,
             },
             {
-              label: "Cross-location Visits",
+              label: "Cross-Location Visits",
               cost: crossLocationCost,
               details:
-                crossLocationVisits > 0
+                crossLocationCost > 0
                   ? `${crossLocationVisits} visits × ${totalPeople} people × $3 per person`
                   : null,
             },
           ],
         },
       };
-      
-      console.log("Welcome Program membership result:", { 
-        totalVisits: result.totalVisits,
-        totalPrice: result.totalPrice
-      });
-      
+
       return result;
     } else {
-      // Single-visit pricing (WelcomeAdmission)
-      const includedPeople = Math.min(
-        people,
-        welcomeConfig.maxSingleVisitGroup
-      );
+      // Single visit
       const singleVisitPrice = welcomeConfig.singleVisitPrice;
-      const admissionCost = includedPeople * singleVisitPrice;
-      const totalPrice =
-        admissionCost +
-        (includeParking && location === "Science"
-          ? PricingConfig.ParkingRates.welcome
-          : 0);
+      const admissionCost = totalPeople * singleVisitPrice;
+      const parkingCost = includeParking && location === "Science" 
+        ? PricingConfig.ParkingRates.welcome 
+        : 0;
+      const totalPrice = admissionCost + parkingCost;
 
       return {
-        pricePerPerson: singleVisitPrice,
-        admissionCost: admissionCost,
-        parkingCost:
-          includeParking && location === "Science"
-            ? PricingConfig.ParkingRates.welcome
-            : 0,
+        basePrice: admissionCost,
+        parkingCost: parkingCost,
+        crossLocationCost: 0,
         totalPrice: totalPrice,
-        people: includedPeople,
         location: location,
         locationLabel: this.getLocationLabel(location),
-        type: "WelcomeAdmission",
-        bestMembershipType: "WelcomeAdmission",
-        bestMembershipLabel: `Discovery Place Welcome Program Single Visit (${this.getLocationLabel(
+        maxPeople: welcomeConfig.maxSingleVisitGroup,
+        peopleIncluded: Math.min(totalPeople, welcomeConfig.maxSingleVisitGroup),
+        type: "WelcomeSingleVisit",
+        bestMembershipType: "WelcomeSingleVisit",
+        bestMembershipLabel: `Welcome Program Single Visit (${this.getLocationLabel(
           location
         )})`,
         purchaseLink: purchaseLink,
         infoLink: infoLink,
-        iconType: "welcome",
-        totalVisits: 1, // For single visits, this is always 1
-        explanation: `${singleVisitPrice} per person for ${includedPeople} people. Includes same-day admission to ${this.getLocationLabel(
+        iconType: "welcome-visit",
+        totalVisits: 1,
+        explanation: `Includes same-day admission to ${this.getLocationLabel(
           location
         )}.`,
         costBreakdown: {
@@ -608,18 +639,12 @@ export const DiscountService = {
                 location
               )})`,
               cost: admissionCost,
-              details: `${includedPeople} people × ${singleVisitPrice} per person`,
+              details: `${Math.min(totalPeople, welcomeConfig.maxSingleVisitGroup)} people × ${singleVisitPrice} per person`,
             },
             {
               label: "Parking at Science",
-              cost:
-                includeParking && location === "Science"
-                  ? PricingConfig.ParkingRates.welcome
-                  : 0,
-              details:
-                includeParking && location === "Science"
-                  ? `$8 flat rate`
-                  : null,
+              cost: parkingCost,
+              details: parkingCost > 0 ? `$8 flat rate` : null,
             },
           ],
         },
