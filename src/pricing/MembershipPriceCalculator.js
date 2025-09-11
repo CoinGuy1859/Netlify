@@ -18,11 +18,22 @@ export const MembershipPriceCalculator = {
     // Add input validation
     if (memberCount <= 0) return 0;
 
+    // Check if membership type exists
+    if (!PricingConfig.MembershipPrices[type]) {
+      console.error(`Invalid membership type: ${type}`);
+      return 0;
+    }
+
     // Cap memberCount to avoid array out-of-bounds
     memberCount = Math.min(
       memberCount,
       PricingConfig.MembershipPrices[type].length
     );
+
+    // Special handling for ScienceBasic - only offers 1-person membership
+    if (type === "ScienceBasic" && memberCount > 1) {
+      return 0; // No multi-person ScienceBasic memberships
+    }
 
     // Special case: DPKH, DPKR, and ScienceKids don't offer 1-person memberships
     if (["DPKH", "DPKR", "ScienceKids"].includes(type) && memberCount === 1) {
@@ -119,6 +130,10 @@ export const MembershipPriceCalculator = {
       "Science",
       totalFamilyMembers
     );
+    const scienceBasicMembershipCost = this.getMembershipPrice(
+      "ScienceBasic",
+      totalFamilyMembers
+    );
     const dpkhMembershipCost = this.getMembershipPrice(
       "DPKH",
       totalFamilyMembers
@@ -142,6 +157,9 @@ export const MembershipPriceCalculator = {
       totalFamilyMembers,
       "Science"
     );
+
+    // ScienceBasic is not eligible for promotional discounts
+    const scienceBasicMembershipPromoCost = scienceBasicMembershipCost;
 
     const dpkhMembershipPromoCost = DiscountService.applyDiscount(
       dpkhMembershipCost,
@@ -168,6 +186,8 @@ export const MembershipPriceCalculator = {
       "Science"
     );
 
+    const scienceBasicDiscountEligible = false; // ScienceBasic never eligible for discounts
+
     const dpkhDiscountEligible = DiscountService.isEligibleForDiscount(
       totalFamilyMembers,
       "DPKH"
@@ -192,6 +212,17 @@ export const MembershipPriceCalculator = {
       adultCount,
       childAges,
       membershipType: "Science",
+      scienceVisits: 0, // Don't include visits to home location
+      dpkhVisits: cappedDpkhVisits,
+      dpkrVisits: cappedDpkrVisits,
+      isRichmondResident,
+    });
+
+    // For ScienceBasic membership - NO cross-location discounts, pay full price
+    let scienceBasicCrossLocationCosts = this.calculateCrossLocationCosts({
+      adultCount,
+      childAges,
+      membershipType: "ScienceBasic", // This will result in no discounts
       scienceVisits: 0, // Don't include visits to home location
       dpkhVisits: cappedDpkhVisits,
       dpkrVisits: cappedDpkrVisits,
@@ -226,13 +257,13 @@ export const MembershipPriceCalculator = {
     // Calculate total costs for all membership types (with parking and cross-location costs)
     const scienceTotalCost =
       scienceMembershipPromoCost + parkingCost + scienceCrossLocationCosts;
+    const scienceBasicTotalCost =
+      scienceBasicMembershipPromoCost + parkingCost + scienceBasicCrossLocationCosts;
     const dpkhTotalCost =
       dpkhMembershipPromoCost + parkingCost + dpkhCrossLocationCosts;
     const dpkrTotalCost =
       dpkrMembershipPromoCost + parkingCost + dpkrCrossLocationCosts;
     const scienceKidsTotalCost = scienceKidsPromoCost + parkingCost;
-
-    // Replacement code for the Welcome Program selection section
 
     // Calculate Welcome Program costs if eligible
     let welcomeProgramOption = null;
@@ -248,174 +279,131 @@ export const MembershipPriceCalculator = {
         dpkrVisits,
         includeParking,
       });
-
-      // Compare Welcome Program with best option purely on cost
-      if (
-        welcomeProgramOption &&
-        welcomeProgramOption.totalPrice < bestOption.cost
-      ) {
-        bestOption = {
-          type: "Welcome",
-          cost: welcomeProgramOption.totalPrice,
-          baseCost: welcomeProgramOption.basePrice,
-          discountedCost: welcomeProgramOption.basePrice, // No additional discount
-          isDiscountEligible: false,
-          parkingCost: welcomeProgramOption.parkingCost,
-          crossLocationCosts: welcomeProgramOption.crossLocationCost,
-          description: `Discovery Place Welcome Program Membership for ${welcomeProgramOption.locationLabel}`,
-          welcomeDetails: welcomeProgramOption,
-        };
-      }
     }
 
-    // Initialize with Science option
-    let bestOption = {
-      type: "Science",
-      cost: scienceTotalCost,
-      baseCost: scienceMembershipCost,
-      discountedCost: scienceMembershipPromoCost,
-      isDiscountEligible: scienceDiscountEligible,
-      parkingCost: parkingCost,
-      crossLocationCosts: scienceCrossLocationCosts,
-      description: `Discovery Place Science Membership with ${
-        scienceDiscountEligible ? "20% discount" : "no discount"
-      }`,
-    };
-
-    // Compare with DPKH option and update if better
-    if (dpkhTotalCost < bestOption.cost) {
-      bestOption = {
+    // Create membership options array
+    const membershipOptions = [
+      {
+        type: "Science",
+        basePrice: scienceMembershipCost,
+        discountedCost: scienceMembershipPromoCost,
+        totalCost: scienceTotalCost,
+        isDiscountEligible: scienceDiscountEligible,
+        parkingCost: parkingCost,
+        crossLocationCosts: scienceCrossLocationCosts,
+        isAvailable: scienceMembershipCost > 0, // Available if there's a valid price
+      },
+      {
+        type: "ScienceBasic",
+        basePrice: scienceBasicMembershipCost,
+        discountedCost: scienceBasicMembershipPromoCost,
+        totalCost: scienceBasicTotalCost,
+        isDiscountEligible: scienceBasicDiscountEligible,
+        parkingCost: parkingCost,
+        crossLocationCosts: scienceBasicCrossLocationCosts,
+        isAvailable: scienceBasicMembershipCost > 0 && totalFamilyMembers === 1, // Only for 1-person
+      },
+      {
         type: "DPKH",
-        cost: dpkhTotalCost,
-        baseCost: dpkhMembershipCost,
+        basePrice: dpkhMembershipCost,
         discountedCost: dpkhMembershipPromoCost,
+        totalCost: dpkhTotalCost,
         isDiscountEligible: dpkhDiscountEligible,
         parkingCost: parkingCost,
         crossLocationCosts: dpkhCrossLocationCosts,
-        description: `Discovery Place Kids-Huntersville Membership with ${
-          dpkhDiscountEligible ? "20% discount" : "no discount"
-        }`,
-      };
-    }
-
-    // Compare with DPKR option and update if better (only if they visit DPKR)
-    if (
-      dpkrTotalCost < bestOption.cost &&
-      (dpkrVisits > 0 || isRockinghamOnlyMembership)
-    ) {
-      bestOption = {
+        isAvailable: dpkhMembershipCost > 0,
+      },
+      {
         type: "DPKR",
-        cost: dpkrTotalCost,
-        baseCost: dpkrMembershipCost,
+        basePrice: dpkrMembershipCost,
         discountedCost: dpkrMembershipPromoCost,
+        totalCost: dpkrTotalCost,
         isDiscountEligible: dpkrDiscountEligible,
         parkingCost: parkingCost,
         crossLocationCosts: dpkrCrossLocationCosts,
-        description: `Discovery Place Kids-Rockingham Membership with ${
-          dpkrDiscountEligible ? "20% discount" : "no discount"
-        }`,
-      };
-    }
-
-    // Compare with Science+Kids option with enhanced logic
-    // If visiting multiple locations significantly, prefer Science+Kids
-    const hasMultipleLocationVisits = (scienceVisits > 0 && (dpkhVisits > 0 || dpkrVisits > 0)) || 
-                                     (dpkhVisits > 0 && dpkrVisits > 0);
-    
-    // Define a preference margin for Science+Kids when visiting multiple locations
-    // If the cost difference is small, prefer Science+Kids for better flexibility
-    const SCIENCEKIDS_PREFERENCE_MARGIN = 30; // $30 preference margin
-    const SCIENCEKIDS_PREFERENCE_PERCENT = 0.1; // Or 10% of the cheaper option
-    
-    const costDifference = scienceKidsTotalCost - bestOption.cost;
-    const percentDifference = bestOption.cost > 0 ? costDifference / bestOption.cost : 0;
-    
-    // Conditions for recommending Science+Kids:
-    // 1. It's cheaper than the best option, OR
-    // 2. Multiple locations are visited AND the cost difference is within our margin
-    if (
-      scienceKidsTotalCost < bestOption.cost || 
-      (hasMultipleLocationVisits && 
-       totalVisits >= 8 &&
-       ((costDifference <= SCIENCEKIDS_PREFERENCE_MARGIN) || 
-        (percentDifference <= SCIENCEKIDS_PREFERENCE_PERCENT)))
-    ) {
-      bestOption = {
+        isAvailable: dpkrMembershipCost > 0,
+      },
+      {
         type: "ScienceKids",
-        cost: scienceKidsTotalCost,
-        baseCost: scienceKidsMembershipCost,
+        basePrice: scienceKidsMembershipCost,
         discountedCost: scienceKidsPromoCost,
+        totalCost: scienceKidsTotalCost,
         isDiscountEligible: scienceKidsDiscountEligible,
         parkingCost: parkingCost,
-        crossLocationCosts: 0,
-        description: `Discovery Place Science + Kids Membership with ${
-          scienceKidsDiscountEligible ? "20% discount" : "no discount"
-        }`,
-      };
-    }
+        crossLocationCosts: scienceKidsCrossLocationCosts,
+        isAvailable: scienceKidsMembershipCost > 0,
+      },
+    ];
 
-    // Consider Welcome Program if eligible
+    // Add Welcome Program if eligible
     if (isWelcomeEligible && welcomeProgramOption) {
-      // If Welcome Program is significantly cheaper
-      if (welcomeProgramOption.totalPrice < bestOption.cost * 0.8) {
-        // If it's at least 20% cheaper
-        bestOption = {
-          type: "Welcome",
-          cost: welcomeProgramOption.totalPrice,
-          baseCost: welcomeProgramOption.basePrice,
-          discountedCost: welcomeProgramOption.basePrice, // No additional discount
-          isDiscountEligible: false,
-          parkingCost: welcomeProgramOption.parkingCost,
-          crossLocationCosts: welcomeProgramOption.crossLocationCost,
-          description: `Discovery Place Welcome Program Membership for ${welcomeProgramOption.locationLabel}`,
-          welcomeDetails: welcomeProgramOption,
-        };
-      }
+      membershipOptions.push({
+        type: "Welcome",
+        basePrice: welcomeProgramOption.totalPrice,
+        discountedCost: welcomeProgramOption.totalPrice,
+        totalCost: welcomeProgramOption.totalPrice,
+        isDiscountEligible: false,
+        parkingCost: 0, // Included in Welcome Program
+        crossLocationCosts: 0, // Included in Welcome Program
+        isAvailable: true,
+        welcomeDetails: welcomeProgramOption,
+      });
     }
 
-    // For very few visits, regular admission might be best
-    if (totalVisits <= 3) {
-      if (regularAdmissionCost < bestOption.cost) {
-        bestOption = {
-          type: "PayAsYouGo",
-          cost: regularAdmissionCost,
-          baseCost: regularAdmissionCost,
-          discountedCost: regularAdmissionCost,
-          isDiscountEligible: false,
-          parkingCost: includeParking
-            ? AdmissionCostCalculator.calculateParkingCost(
-                cappedScienceVisits,
-                false
-              )
-            : 0,
-          crossLocationCosts: 0,
-          description: `Pay As You Go (Regular Admission)`,
-        };
-      }
-    }
+    // Filter available options and find the best one
+    const availableOptions = membershipOptions.filter(option => option.isAvailable);
+    const bestOption = availableOptions.reduce((best, current) => 
+      current.totalCost < best.totalCost ? current : best
+    );
 
-    // Get membership details
-    const membershipDetails = this.getMembershipDetails(bestOption.type);
+    // Add PayAsYouGo option for comparison
+    const payAsYouGoOption = {
+      type: "PayAsYouGo",
+      basePrice: regularAdmissionCost,
+      discountedCost: regularAdmissionCost,
+      totalCost: regularAdmissionCost,
+      isDiscountEligible: false,
+      parkingCost: 0, // Included in regular admission cost
+      crossLocationCosts: 0, // Included in regular admission cost
+      isAvailable: true,
+    };
 
-    // Build cost breakdown items - Include cross-location costs in the breakdown
+    // Compare with pay-as-you-go
+    const finalBestOption = regularAdmissionCost < bestOption.totalCost 
+      ? payAsYouGoOption 
+      : bestOption;
+
+    // Get membership details using new structure
+    const membershipDetails = PricingConfig.MembershipDetails[finalBestOption.type] || PricingConfig.MembershipDetails["Science"];
+
+    // Calculate savings
+    const totalSavings = regularAdmissionCost - finalBestOption.totalCost;
+    const savingsPercentage = regularAdmissionCost > 0 
+      ? Math.round((totalSavings / regularAdmissionCost) * 100) 
+      : 0;
+
+    // Generate explanation
+    const explanation = this.generateMembershipExplanation({
+      bestMembershipType: finalBestOption.type,
+      totalVisits,
+      primaryLocation,
+      totalFamilyMembers,
+      totalSavings,
+      regularAdmissionCost,
+      bestOption: finalBestOption,
+    });
+
+    // Build cost breakdown items
     let costBreakdownItems = [];
+    let savingsBreakdownItems = [];
 
-    if (bestOption.type === "Welcome" && bestOption.welcomeDetails) {
-      // Use the Welcome Program breakdown
-      costBreakdownItems = bestOption.welcomeDetails.costBreakdown.items;
-    } else if (bestOption.type === "PayAsYouGo") {
-      // Regular admission breakdown
+    if (finalBestOption.type === "PayAsYouGo") {
       costBreakdownItems = [
         {
           label: "Regular Admission",
-          cost:
-            regularAdmissionCost -
-            (includeParking
-              ? AdmissionCostCalculator.calculateParkingCost(
-                  cappedScienceVisits,
-                  false
-                )
-              : 0),
+          cost: finalBestOption.totalCost - (includeParking && cappedScienceVisits > 0 
+            ? AdmissionCostCalculator.calculateParkingCost(cappedScienceVisits, false) 
+            : 0),
           details: `${totalVisits} total visits`,
         },
       ];
@@ -423,10 +411,7 @@ export const MembershipPriceCalculator = {
       if (includeParking && cappedScienceVisits > 0) {
         costBreakdownItems.push({
           label: "Parking at Science",
-          cost: AdmissionCostCalculator.calculateParkingCost(
-            cappedScienceVisits,
-            false
-          ),
+          cost: AdmissionCostCalculator.calculateParkingCost(cappedScienceVisits, false),
           details: `${cappedScienceVisits} visits × $18 per visit`,
         });
       }
@@ -434,134 +419,34 @@ export const MembershipPriceCalculator = {
       // Standard membership breakdown
       costBreakdownItems = [
         {
-          label: `${membershipDetails.label}`,
-          cost: bestOption.discountedCost,
-          details: bestOption.isDiscountEligible
-            ? `Original price: $${bestOption.baseCost}, after ${Math.round(
-                PricingConfig.Discounts.membershipDiscount.currentRate * 100
-              )}% discount`
-            : null,
+          label: membershipDetails.label,
+          cost: finalBestOption.discountedCost,
+          details: finalBestOption.isDiscountEligible
+            ? `${finalBestOption.basePrice} - 20% discount = ${finalBestOption.discountedCost}`
+            : `Base membership fee`,
         },
-      ];
-
-      if (includeParking && cappedScienceVisits > 0) {
-        costBreakdownItems.push({
-          label: "Parking at Science",
-          cost: parkingCost,
-          details: `${cappedScienceVisits} visits × $8 per visit`,
-        });
-      }
-
-      // Add cross-location costs if any
-      if (bestOption.crossLocationCosts > 0) {
-        // Determine which locations are not covered by the membership
-        let crossLocations = [];
-        if (bestOption.type === "Science") {
-          if (cappedDpkhVisits > 0)
-            crossLocations.push({
-              name: "Kids-Huntersville",
-              visits: cappedDpkhVisits,
-            });
-          if (cappedDpkrVisits > 0)
-            crossLocations.push({
-              name: "Kids-Rockingham",
-              visits: cappedDpkrVisits,
-            });
-        } else if (bestOption.type === "DPKH") {
-          if (cappedScienceVisits > 0)
-            crossLocations.push({
-              name: "Science",
-              visits: cappedScienceVisits,
-            });
-          if (cappedDpkrVisits > 0)
-            crossLocations.push({
-              name: "Kids-Rockingham",
-              visits: cappedDpkrVisits,
-            });
-        } else if (bestOption.type === "DPKR") {
-          if (cappedScienceVisits > 0)
-            crossLocations.push({
-              name: "Science",
-              visits: cappedScienceVisits,
-            });
-          if (cappedDpkhVisits > 0)
-            crossLocations.push({
-              name: "Kids-Huntersville",
-              visits: cappedDpkhVisits,
-            });
-        }
-
-        // Create a description of the cross-location visits
-        let crossLocationDetails = crossLocations
-          .map((loc) => `${loc.visits} visits to ${loc.name}`)
-          .join(", ");
-
-        costBreakdownItems.push({
-          label: "Cross-Location Admission (Member Discounted)",
-          cost: bestOption.crossLocationCosts,
-          details: crossLocationDetails,
-        });
-      }
-    }
-
-    // Add guest savings breakdown items separately - don't subtract from cost
-    const savingsBreakdownItems = guestSavingsBreakdown;
-
-    // Calculate total savings compared to regular admission
-    const totalSavings = Math.max(0, regularAdmissionCost - bestOption.cost);
-
-    // Calculate savings percentage
-    const savingsPercentage =
-      regularAdmissionCost > 0
-        ? Math.min(90, Math.round((totalSavings / regularAdmissionCost) * 100))
-        : 0;
-
-    // Build the explanation text based on membership type
-    let explanation = "";
-    if (bestOption.type === "Welcome") {
-      explanation = bestOption.welcomeDetails.explanation;
-    } else if (bestOption.type === "PayAsYouGo") {
-      explanation = `With ${totalVisits} total visits planned, regular admission is your most economical option.`;
-    } else if (bestOption.type === "ScienceKids") {
-      explanation = `With ${totalVisits} total visits planned across multiple locations, a Science + Kids membership offers the best value and flexibility. Includes admission to all Discovery Place locations and $8 flat-rate parking at Science.`;
-    } else {
-      // For single-location membership, include information about cross-location costs
-      if (bestOption.crossLocationCosts > 0) {
-        explanation = `With ${totalVisits} total visits planned, a membership to ${
-          membershipDetails.label
-        } offers good value. Includes $8 flat-rate parking at Science${
-          bestOption.type !== "Science" ? " when you visit" : ""
-        } and discounted admission to other locations.`;
-      } else {
-        explanation = `With ${totalVisits} total visits planned, a membership to ${
-          membershipDetails.label
-        } offers excellent value. Includes $8 flat-rate parking at Science${
-          bestOption.type !== "Science" ? " when you visit" : ""
-        }.`;
-      }
-    }
-
-    // Build the complete result object
-    const result = {
-      baseMembershipPrice: bestOption.baseCost,
-      baseMembershipDiscount: bestOption.discountedCost,
-      bestMembershipPromoCost: bestOption.cost,
-      bestMembershipType: bestOption.type,
-      bestMembershipLabel: membershipDetails.label,
-      discountEligible: bestOption.isDiscountEligible,
-      additionalCosts: [
-        ...(bestOption.parkingCost > 0
-          ? [{ label: "Parking at Science", cost: bestOption.parkingCost }]
+        ...(finalBestOption.parkingCost > 0
+          ? [{ label: "Parking at Science", cost: finalBestOption.parkingCost }]
           : []),
-        ...(bestOption.crossLocationCosts > 0
+        ...(finalBestOption.crossLocationCosts > 0
           ? [
               {
                 label: "Cross-Location Admission",
-                cost: bestOption.crossLocationCosts,
+                cost: finalBestOption.crossLocationCosts,
               },
             ]
           : []),
-      ],
+      ];
+    }
+
+    // Build result object
+    const result = {
+      bestMembershipType: finalBestOption.type,
+      bestMembershipLabel: membershipDetails.label,
+      baseMembershipPrice: finalBestOption.discountedCost,
+      totalMembershipCost: finalBestOption.totalCost,
+      additionalCosts: costBreakdownItems.slice(1), // Exclude base membership
+      getTotalPrice: () => finalBestOption.totalCost,
       costBreakdown: {
         items: costBreakdownItems,
         guestSavingsDetails: guestSavingsBreakdown.flatMap(
@@ -577,18 +462,19 @@ export const MembershipPriceCalculator = {
       totalVisits: totalVisits,
       totalFamilyMembers: totalFamilyMembers,
       scienceDiscountEligible: scienceDiscountEligible,
+      scienceBasicDiscountEligible: scienceBasicDiscountEligible,
       dpkhDiscountEligible: dpkhDiscountEligible,
       dpkrDiscountEligible: dpkrDiscountEligible,
       scienceKidsDiscountEligible: scienceKidsDiscountEligible,
       purchaseLink:
-        bestOption.type === "Welcome" && bestOption.welcomeDetails
-          ? bestOption.welcomeDetails.purchaseLink
+        finalBestOption.type === "Welcome" && finalBestOption.welcomeDetails
+          ? finalBestOption.welcomeDetails.purchaseLink
           : membershipDetails.purchaseLink,
       isWelcomeEligible: isWelcomeEligible,
       welcomeProgramOption: isWelcomeEligible ? welcomeProgramOption : null,
       regularAdmissionCost: regularAdmissionCost,
       guestAdmissionSavings: guestAdmissionSavings,
-      crossLocationCosts: bestOption.crossLocationCosts || 0,
+      crossLocationCosts: finalBestOption.crossLocationCosts || 0,
     };
 
     return result;
@@ -805,88 +691,31 @@ export const MembershipPriceCalculator = {
    * @returns {Object} Membership details
    */
   getMembershipDetails(membershipType) {
-    const details = {
-      Science: {
-        label: "Discovery Place Science Membership",
-        iconType: "science",
-        purchaseLink:
-          "https://visit.discoveryplace.org/science/events/36a58ae8-155d-8116-9188-7d0b6fae199c",
-        description:
-          "Access to Discovery Place Science for all named members, plus guest discounts at other locations",
-      },
-      ScienceBasic: {
-        label: "Discovery Place Science Basic Membership",
-        iconType: "science-basic",
-        purchaseLink:
-          "https://visit.discoveryplace.org/science/events/36a58ae8-155d-8116-9188-7d0b6fae199c",
-        description:
-          "Access to Discovery Place Science for one adult, with 50% off guest admission for family members",
-      },
-      DPKH: {
-        label: "Discovery Place Kids-Huntersville Membership",
-        iconType: "kids-huntersville",
-        purchaseLink:
-          "https://visit.discoveryplace.org/huntersville/events/7877bc4b-7702-fb6d-b750-01a851e506db",
-        description:
-          "Access to Discovery Place Kids-Huntersville for all named members, plus guest discounts at other locations",
-      },
-      DPKHBasic: {
-        label: "Discovery Place Kids-Huntersville Basic Membership",
-        iconType: "kids-huntersville-basic",
-        purchaseLink:
-          "https://visit.discoveryplace.org/huntersville/events/7877bc4b-7702-fb6d-b750-01a851e506db",
-        description:
-          "Access to Discovery Place Kids-Huntersville for one adult and one child, with 50% off guest admission for other family members",
-      },
-      DPKR: {
-        label: "Discovery Place Kids-Rockingham Membership",
-        iconType: "kids-rockingham",
-        purchaseLink:
-          "https://visit.discoveryplace.org/rockingham/events/b3422931-4d69-406e-3cdc-39e7081a9f41",
-        description:
-          "Access to Discovery Place Kids-Rockingham for all named members, plus guest discounts at other locations",
-      },
-      DPKRBasic: {
-        label: "Discovery Place Kids-Rockingham Basic Membership",
-        iconType: "kids-rockingham-basic",
-        purchaseLink:
-          "https://visit.discoveryplace.org/rockingham/events/b3422931-4d69-406e-3cdc-39e7081a9f41",
-        description:
-          "Access to Discovery Place Kids-Rockingham for one adult and one child, with 50% off guest admission for other family members",
-      },
-      ScienceKids: {
-        label: "Discovery Place Science + Kids Membership",
-        iconType: "science-kids",
-        purchaseLink:
-          "https://visit.discoveryplace.org/science/events/36a58ae8-155d-8116-9188-7d0b6fae199c",
-        description:
-          "Access to all Discovery Place locations for all named members",
-      },
-      Welcome: {
-        label: "Discovery Place Welcome Program Membership",
-        iconType: "welcome",
-        purchaseLink:
-          "https://visit.discoveryplace.org/science/events/36a58ae8-155d-8116-9188-7d0b6fae199c?tg=d99160b3-94fd-9362-978e-44607faf4b03",
-        description:
-          "Discounted membership program for NC/SC EBT/WIC cardholders, with access to one Discovery Place location",
-      },
-      WelcomeAdmission: {
-        label: "Discovery Place Welcome Program Admission",
-        iconType: "welcome",
-        purchaseLink:
-          "https://visit.discoveryplace.org/science/events/36a58ae8-155d-8116-9188-7d0b6fae199c?tg=d99160b3-94fd-9362-978e-44607faf4b03",
-        description:
-          "$3 per person admission for NC/SC EBT/WIC cardholders and their guests (up to 6 people)",
-      },
-      PayAsYouGo: {
-        label: "Pay As You Go (Regular Admission)",
-        iconType: "ticket",
-        purchaseLink: "https://discoveryplace.org/visit/buy-tickets/",
-        description: "Regular admission tickets purchased for each visit",
-      },
-    };
+    return PricingConfig.MembershipDetails[membershipType] || PricingConfig.MembershipDetails["Science"];
+  },
 
-    return details[membershipType] || details["Science"];
+  /**
+   * Generate explanation for the recommended membership
+   * @param {Object} options - Explanation options
+   * @returns {string} Explanation text
+   */
+  generateMembershipExplanation(options) {
+    const {
+      bestMembershipType,
+      totalVisits,
+      totalSavings,
+      regularAdmissionCost,
+    } = options;
+
+    if (bestMembershipType === "PayAsYouGo") {
+      return `With ${totalVisits} planned visits, paying for individual admissions is more cost-effective than purchasing a membership.`;
+    } else if (bestMembershipType === "Welcome") {
+      return `As an EBT/WIC cardholder, you qualify for our Welcome Program, which offers the best value for your family.`;
+    } else if (bestMembershipType === "ScienceBasic") {
+      return `The Science Basic membership is perfect for individual visitors who primarily visit Discovery Place Science. You'll save $${totalSavings.toFixed(2)} compared to regular admission.`;
+    } else {
+      return `Based on your visit pattern, the ${this.getMembershipDetails(bestMembershipType).label} offers the best value, saving you $${totalSavings.toFixed(2)} compared to regular admission.`;
+    }
   },
 
   /**
@@ -930,20 +759,18 @@ export const MembershipPriceCalculator = {
 
     // For primarily Science visits
     if (scienceVisits >= dpkhVisits && scienceVisits >= dpkrVisits) {
-      return totalFamilyMembers <= 2 && !needsFlexibility
+      return totalFamilyMembers === 1 && !needsFlexibility
         ? "ScienceBasic"
         : "Science";
     }
 
     // For primarily DPKH visits
     if (dpkhVisits >= scienceVisits && dpkhVisits >= dpkrVisits) {
-      return totalFamilyMembers <= 2 && !needsFlexibility
-        ? "DPKHBasic"
-        : "DPKH";
+      return "DPKH";
     }
 
     // For primarily DPKR visits
-    return totalFamilyMembers <= 2 && !needsFlexibility ? "DPKRBasic" : "DPKR";
+    return "DPKR";
   },
 };
 
