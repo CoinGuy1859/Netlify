@@ -18,6 +18,7 @@ const MembershipTools = ({
   isRichmondResident,
   needsFlexibility,
   isWelcomeEligible,
+  discountType,            // ADD THIS
   includeParking,
   errors,
   membershipRecommendation,
@@ -30,6 +31,7 @@ const MembershipTools = ({
   onRichmondResidentChange,
   onFlexibilityChange,
   onWelcomeEligibleChange,
+  onDiscountTypeChange,    // ADD THIS
   onScienceVisitsChange,
   onDpkhVisitsChange,
   onDpkrVisitsChange,
@@ -142,6 +144,7 @@ const MembershipTools = ({
               isRichmondResident={isRichmondResident}
               needsFlexibility={needsFlexibility}
               isWelcomeEligible={isWelcomeEligible}
+              discountType={discountType}                    // ADD THIS
               errors={errors}
               onAdultCountChange={onAdultCountChange}
               onChildrenCountChange={onChildrenCountChange}
@@ -149,6 +152,7 @@ const MembershipTools = ({
               onRichmondResidentChange={onRichmondResidentChange}
               onFlexibilityChange={onFlexibilityChange}
               onWelcomeEligibleChange={onWelcomeEligibleChange}
+              onDiscountTypeChange={onDiscountTypeChange}    // ADD THIS
               onNextStep={onNextStep}
             />
           )}
