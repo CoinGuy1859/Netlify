@@ -296,8 +296,7 @@ function App() {
     };
   }, []);
 
-  // FIXED: Calculate membership recommendation when needed
-  // Only depend on the specific state values we actually need to watch
+  // REAL FIX: Only depend on the trigger flag, read current values inside effect
   useEffect(() => {
     if (state.needsRecommendationUpdate && state.currentStep === 3) {
       console.log("🟡 useEffect triggered! Starting recommendation calculation...");
@@ -308,7 +307,8 @@ function App() {
       const timeoutId = setTimeout(() => {
         console.log("🟡 setTimeout started, about to calculate...");
         try {
-          console.log("🟡 Starting calculation with data:", {
+          // Read current state values at calculation time
+          console.log("🟡 Starting calculation with current data:", {
             adultCount: state.adultCount, 
             childrenCount: state.childrenCount,
             scienceVisits: state.scienceVisits, 
@@ -395,21 +395,10 @@ function App() {
       return () => clearTimeout(timeoutId);
     }
   }, [
-    // FIXED: Only include specific state values that trigger recalculation
-    // Removed 'state' from dependencies to prevent infinite loop
+    // SIMPLIFIED: Only depend on the flag that triggers calculation
+    // This prevents infinite loops from array references and other state changes
     state.needsRecommendationUpdate, 
-    state.currentStep,
-    state.adultCount,
-    state.childrenCount,
-    state.childAges,
-    state.scienceVisits,
-    state.dpkhVisits,
-    state.dpkrVisits,
-    state.isRichmondResident,
-    state.needsFlexibility,
-    state.isWelcomeEligible,
-    state.includeParking,
-    state.discountType
+    state.currentStep
   ]);
 
   // Handler functions
