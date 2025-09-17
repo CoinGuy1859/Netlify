@@ -34,6 +34,7 @@ const initialState = {
   needsFlexibility: false,
   isWelcomeEligible: false,
   includeParking: true,
+  discountType: null, // Can be 'educator', 'military', or null
 
   // UI state
   errors: {
@@ -67,6 +68,7 @@ const ACTION_TYPES = {
   SET_NEEDS_FLEXIBILITY: "SET_NEEDS_FLEXIBILITY",
   SET_WELCOME_ELIGIBLE: "SET_WELCOME_ELIGIBLE",
   SET_INCLUDE_PARKING: "SET_INCLUDE_PARKING",
+  SET_DISCOUNT_TYPE: "SET_DISCOUNT_TYPE",
   SET_ERRORS: "SET_ERRORS",
   SET_ANNOUNCEMENT: "SET_ANNOUNCEMENT",
   SET_IS_CALCULATING: "SET_IS_CALCULATING", // New action for calculation state
@@ -94,698 +96,421 @@ function appReducer(state, action) {
       };
     }
 
-    case ACTION_TYPES.SET_ADULT_COUNT:
+    case ACTION_TYPES.SET_ADULT_COUNT: {
+      const newCount = capValue(
+        action.payload,
+        1,
+        PricingConfig.Constraints.MAX_ADULTS
+      );
       return {
         ...state,
-        adultCount: capValue(
-          action.payload,
-          1,
-          PricingConfig.Constraints.MAX_ADULTS
-        ),
+        adultCount: newCount,
+        needsRecommendationUpdate: state.currentStep === 3,
       };
-
-    case ACTION_TYPES.SET_CHILDREN_COUNT:
-      return {
-        ...state,
-        childrenCount: capValue(
-          action.payload,
-          0,
-          PricingConfig.Constraints.MAX_CHILDREN
-        ),
-      };
-
-    case ACTION_TYPES.SET_CHILD_AGE: {
-      const newChildAges = [...state.childAges];
-      newChildAges[action.payload.index] = action.payload.age;
-      return { ...state, childAges: newChildAges };
     }
 
-    case ACTION_TYPES.UPDATE_CHILD_AGES_ARRAY:
-      return { ...state, childAges: action.payload };
-
-    case ACTION_TYPES.SET_SCIENCE_VISITS:
+    case ACTION_TYPES.SET_CHILDREN_COUNT: {
+      const newCount = capValue(
+        action.payload,
+        0,
+        PricingConfig.Constraints.MAX_CHILDREN
+      );
+      const newChildAges = Array(newCount)
+        .fill(null)
+        .map((_, index) => state.childAges[index] || 5);
+      const newErrors = Array(newCount).fill("");
       return {
         ...state,
-        scienceVisits: capValue(
-          action.payload,
-          0,
-          PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
-        ),
+        childrenCount: newCount,
+        childAges: newChildAges,
+        errors: { ...state.errors, childAges: newErrors },
+        needsRecommendationUpdate: state.currentStep === 3,
       };
+    }
 
-    case ACTION_TYPES.SET_DPKH_VISITS:
+    case ACTION_TYPES.SET_CHILD_AGE: {
+      const { index, age } = action.payload;
+      const cappedAge = capValue(
+        age,
+        0,
+        PricingConfig.Constraints.MAX_AGE_FOR_CHILD
+      );
+      const newChildAges = [...state.childAges];
+      newChildAges[index] = cappedAge;
+      const newErrors = [...state.errors.childAges];
+      newErrors[index] = "";
       return {
         ...state,
-        dpkhVisits: capValue(
-          action.payload,
-          0,
-          PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
-        ),
+        childAges: newChildAges,
+        errors: { ...state.errors, childAges: newErrors },
+        needsRecommendationUpdate: state.currentStep === 3,
       };
+    }
 
-    case ACTION_TYPES.SET_DPKR_VISITS:
+    case ACTION_TYPES.UPDATE_CHILD_AGES_ARRAY: {
       return {
         ...state,
-        dpkrVisits: capValue(
-          action.payload,
-          0,
-          PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
-        ),
+        childAges: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
       };
+    }
 
-    case ACTION_TYPES.SET_RICHMOND_RESIDENT:
-      return { ...state, isRichmondResident: Boolean(action.payload) };
+    case ACTION_TYPES.SET_SCIENCE_VISITS: {
+      const newVisits = capValue(
+        action.payload,
+        0,
+        PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
+      );
+      return {
+        ...state,
+        scienceVisits: newVisits,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_NEEDS_FLEXIBILITY:
-      return { ...state, needsFlexibility: Boolean(action.payload) };
+    case ACTION_TYPES.SET_DPKH_VISITS: {
+      const newVisits = capValue(
+        action.payload,
+        0,
+        PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
+      );
+      return {
+        ...state,
+        dpkhVisits: newVisits,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_WELCOME_ELIGIBLE:
-      return { ...state, isWelcomeEligible: Boolean(action.payload) };
+    case ACTION_TYPES.SET_DPKR_VISITS: {
+      const newVisits = capValue(
+        action.payload,
+        0,
+        PricingConfig.Constraints.MAX_VISITS_PER_LOCATION
+      );
+      return {
+        ...state,
+        dpkrVisits: newVisits,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_INCLUDE_PARKING:
-      return { ...state, includeParking: Boolean(action.payload) };
+    case ACTION_TYPES.SET_RICHMOND_RESIDENT: {
+      return {
+        ...state,
+        isRichmondResident: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_ERRORS:
-      return { ...state, errors: action.payload };
+    case ACTION_TYPES.SET_NEEDS_FLEXIBILITY: {
+      return {
+        ...state,
+        needsFlexibility: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_ANNOUNCEMENT:
-      return { ...state, announcement: action.payload };
+    case ACTION_TYPES.SET_WELCOME_ELIGIBLE: {
+      return {
+        ...state,
+        isWelcomeEligible: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.SET_IS_CALCULATING:
-      return { ...state, isCalculating: action.payload };
+    case ACTION_TYPES.SET_INCLUDE_PARKING: {
+      return {
+        ...state,
+        includeParking: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
 
-    case ACTION_TYPES.UPDATE_RECOMMENDATION:
+    case ACTION_TYPES.SET_DISCOUNT_TYPE: {
+      return {
+        ...state,
+        discountType: action.payload,
+        needsRecommendationUpdate: state.currentStep === 3,
+      };
+    }
+
+    case ACTION_TYPES.SET_ERRORS: {
+      return {
+        ...state,
+        errors: action.payload,
+      };
+    }
+
+    case ACTION_TYPES.SET_ANNOUNCEMENT: {
+      return {
+        ...state,
+        announcement: action.payload,
+      };
+    }
+
+    case ACTION_TYPES.SET_IS_CALCULATING: {
+      return {
+        ...state,
+        isCalculating: action.payload,
+      };
+    }
+
+    case ACTION_TYPES.UPDATE_RECOMMENDATION: {
       return {
         ...state,
         membershipRecommendation: action.payload.recommendation,
         primaryLocationIcon: action.payload.primaryLocationIcon,
         visitDistributionData: action.payload.visitDistributionData,
         needsRecommendationUpdate: false,
-        isCalculating: false, // Stop calculating when recommendation is updated
+        isCalculating: false,
       };
+    }
 
-    case ACTION_TYPES.REQUEST_RECOMMENDATION_UPDATE:
+    case ACTION_TYPES.REQUEST_RECOMMENDATION_UPDATE: {
       return {
         ...state,
         needsRecommendationUpdate: true,
-        isCalculating: true, // Start calculating when update is requested
       };
+    }
 
-    case ACTION_TYPES.RESET_CALCULATOR:
-      return { ...initialState };
+    case ACTION_TYPES.RESET_CALCULATOR: {
+      return initialState;
+    }
 
     default:
       return state;
   }
 }
 
-/**
- * Main Application Component
- */
-const DiscoveryPlaceMembershipCalculator = () => {
-  // Use reducer for state management
+function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Track if initial render has completed
-  const initialRenderRef = useRef(true);
+  // Create a ref to track mounted state
+  const isMounted = useRef(true);
 
-  const {
-    currentStep,
-    adultCount,
-    childrenCount,
-    childAges,
-    scienceVisits,
-    dpkhVisits,
-    dpkrVisits,
-    isRichmondResident,
-    needsFlexibility,
-    isWelcomeEligible,
-    includeParking,
-    errors,
-    announcement,
-    membershipRecommendation,
-    primaryLocationIcon,
-    visitDistributionData,
-    needsRecommendationUpdate,
-    isCalculating, // Extract the calculating state
-  } = state;
-
-  // Helper function to create action dispatchers
-  const createActionDispatcher = (type) => (payload) => {
-    dispatch({ type, payload });
-  };
-
-  // Create action dispatchers for common actions
-  const setStep = createActionDispatcher(ACTION_TYPES.SET_STEP);
-  const setAdultCount = createActionDispatcher(ACTION_TYPES.SET_ADULT_COUNT);
-  const setChildrenCount = createActionDispatcher(
-    ACTION_TYPES.SET_CHILDREN_COUNT
-  );
-  const setErrors = createActionDispatcher(ACTION_TYPES.SET_ERRORS);
-  const setAnnouncement = createActionDispatcher(ACTION_TYPES.SET_ANNOUNCEMENT);
-  const setIsCalculating = createActionDispatcher(
-    ACTION_TYPES.SET_IS_CALCULATING
-  );
-  const resetCalculator = createActionDispatcher(ACTION_TYPES.RESET_CALCULATOR);
-
-  /**
-   * Handle initial render effects
-   */
+  // Effect to clean up on unmount
   useEffect(() => {
-    // Skip effects on initial render
-    if (initialRenderRef.current) {
-      initialRenderRef.current = false;
-      return;
-    }
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
-  /**
-   * Update child ages array when child count changes
-   */
+  // Calculate membership recommendation when needed
   useEffect(() => {
-    // Skip initial render
-    if (initialRenderRef.current) {
-      return;
-    }
+    if (state.needsRecommendationUpdate && state.currentStep === 3) {
+      // Set calculating state
+      dispatch({ type: ACTION_TYPES.SET_IS_CALCULATING, payload: true });
 
-    if (childrenCount > childAges.length) {
-      // Add new children with default age 5
-      const newChildAges = [...childAges];
-      for (let i = childAges.length; i < childrenCount; i++) {
-        newChildAges.push(5);
-      }
-      // Execute in the next tick to avoid batched updates
-      setTimeout(() => {
-        dispatch({
-          type: ACTION_TYPES.UPDATE_CHILD_AGES_ARRAY,
-          payload: newChildAges,
-        });
-      }, 0);
-    } else if (childrenCount < childAges.length) {
-      // Remove extra children
-      setTimeout(() => {
-        dispatch({
-          type: ACTION_TYPES.UPDATE_CHILD_AGES_ARRAY,
-          payload: childAges.slice(0, childrenCount),
-        });
-      }, 0);
-    }
-  }, [childrenCount, childAges]);
-
-  /**
-   * Update validation errors array size when child count changes
-   */
-  useEffect(() => {
-    // Skip initial render
-    if (initialRenderRef.current) {
-      return;
-    }
-
-    // Only update errors if lengths don't match
-    if (errors.childAges.length !== childrenCount) {
-      setTimeout(() => {
-        setErrors({
-          ...errors,
-          childAges: Array(childrenCount).fill(""),
-        });
-      }, 0);
-    }
-  }, [childrenCount, errors]);
-
-  /**
-   * Calculate membership recommendation when the flag is set
-   */
-  useEffect(() => {
-    // Skip if not on step 3 or no update needed
-    if (currentStep !== 3 || !needsRecommendationUpdate) {
-      return;
-    }
-
-    // Set loading state at the start of calculation
-    setIsCalculating(true);
-
-    // Add an artificial delay to make the loading state visible (can be removed in production)
-    setTimeout(() => {
-      try {
-        // Calculate recommendation
-        const newRecommendation =
-          MembershipPriceCalculator.calculateMembershipCosts({
-            adultCount,
-            childrenCount,
-            childAges,
-            scienceVisits,
-            dpkhVisits,
-            dpkrVisits,
-            isRichmondResident,
-            needsFlexibility,
-            isWelcomeEligible,
-            includeParking,
-          });
-
-        // Determine primary location icon based on visit frequency
-        const primaryLocation =
-          AdmissionCostCalculator.determinePrimaryLocation(
-            scienceVisits,
-            dpkhVisits,
-            dpkrVisits
-          );
-        let newPrimaryLocationIcon = "science";
-        switch (primaryLocation) {
-          case "Science":
-            newPrimaryLocationIcon = "science";
-            break;
-          case "DPKH":
-            newPrimaryLocationIcon = "kids-huntersville";
-            break;
-          case "DPKR":
-            newPrimaryLocationIcon = "kids-rockingham";
-            break;
-        }
-
-        // Generate visit distribution data for charts
-        const totalVisits = scienceVisits + dpkhVisits + dpkrVisits;
-        const newVisitDistributionData =
-          totalVisits === 0
-            ? []
-            : [
-                {
-                  name: "Discovery Place Science",
-                  shortName: "Science",
-                  value: scienceVisits,
-                  fill: "#3182CE", // Blue
-                },
-                {
-                  name: "Discovery Place Kids-Huntersville",
-                  shortName: "Kids-H",
-                  value: dpkhVisits,
-                  fill: "#9F7AEA", // Purple
-                },
-                {
-                  name: "Discovery Place Kids-Rockingham",
-                  shortName: "Kids-R",
-                  value: dpkrVisits,
-                  fill: "#ED8936", // Orange
-                },
-              ].filter((item) => item.value > 0);
-
-        // Update the recommendation in the next tick to avoid batched updates
-        setTimeout(() => {
-          dispatch({
-            type: ACTION_TYPES.UPDATE_RECOMMENDATION,
-            payload: {
-              recommendation: newRecommendation,
-              primaryLocationIcon: newPrimaryLocationIcon,
-              visitDistributionData: newVisitDistributionData,
-            },
-          });
-
-          // Announce completion for screen readers
-          announceToScreenReader(
-            "Your membership recommendation is ready.",
-            "polite"
-          );
-        }, 0);
-      } catch (error) {
-        console.error("Error calculating recommendation:", error);
-        // Set an error state or show a notification to the user
-        setAnnouncement(
-          "An error occurred while calculating your recommendation. Please try again."
-        );
-        // End calculation state
-        setIsCalculating(false);
-      }
-    }, 800); // Small delay to make loading state visible (can be adjusted or removed)
-  }, [
-    needsRecommendationUpdate,
-    currentStep,
-    adultCount,
-    childrenCount,
-    childAges,
-    scienceVisits,
-    dpkhVisits,
-    dpkrVisits,
-    isRichmondResident,
-    needsFlexibility,
-    isWelcomeEligible,
-    includeParking,
-  ]);
-
-  /**
-   * Navigation functions
-   */
-  const nextStep = useCallback(() => {
-    if (currentStep === 1) {
-      // Validate family composition
-      if (!validateChildAges()) {
-        announceToScreenReader(
-          "Please fix the errors before continuing.",
-          "assertive"
-        );
-        return;
-      }
-    } else if (currentStep === 2) {
-      // Validate visits
-      if (!validateVisits()) {
-        return;
-      }
-    }
-
-    // Proceed to next step
-    const newStep = currentStep + 1;
-    setStep(newStep);
-
-    // Announce step change for screen readers
-    let stepName = "";
-    if (newStep === 2) stepName = "Your Visits";
-    if (newStep === 3) stepName = "Your Recommendation";
-
-    announceToScreenReader(
-      `Moving to step ${newStep} of 3: ${stepName}.`,
-      "assertive"
-    );
-  }, [currentStep]);
-
-  const prevStep = useCallback(() => {
-    const newStep = currentStep - 1;
-    setStep(newStep);
-
-    // Announce step change for screen readers
-    let stepName = "";
-    if (newStep === 1) stepName = "Your Family";
-    if (newStep === 2) stepName = "Your Visits";
-
-    announceToScreenReader(
-      `Moving back to step ${newStep} of 3: ${stepName}.`,
-      "assertive"
-    );
-  }, [currentStep]);
-
-  /**
-   * Form validation functions
-   */
-  const validateChildAges = useCallback(() => {
-    const newErrors = {
-      childAges: Array(childrenCount).fill(""),
-    };
-    let isValid = true;
-
-    // Validate each child's age
-    childAges.slice(0, childrenCount).forEach((age, index) => {
-      if (age === "" || age < 0 || age > 17 || isNaN(age)) {
-        newErrors.childAges[
-          index
-        ] = `Please enter a valid age between 0 and 17`;
-        isValid = false;
-      }
-    });
-
-    setErrors(newErrors);
-    return isValid;
-  }, [childAges, childrenCount]);
-
-  const validateVisits = useCallback(() => {
-    const totalVisits = scienceVisits + dpkhVisits + dpkrVisits;
-
-    if (totalVisits === 0) {
-      announceToScreenReader(
-        "Please select at least one visit to generate a recommendation.",
-        "assertive"
-      );
-      return false;
-    }
-    return true;
-  }, [scienceVisits, dpkhVisits, dpkrVisits]);
-
-  /**
-   * Accessibility announcement function
-   */
-  const announceToScreenReader = useCallback(
-    (message, importance = "polite") => {
-      // Set the announcement message in state
-      setAnnouncement(message);
-
-      // For critical announcements, try to use the assertive region
-      if (importance === "assertive") {
+      // Use a small delay to ensure UI updates
+      const timeoutId = setTimeout(() => {
         try {
-          const assertiveRegion = document.getElementById(
-            "assertive-announcements"
+          const recommendation = MembershipPriceCalculator.calculateMembershipCosts(
+            {
+              adultCount: state.adultCount,
+              childrenCount: state.childrenCount,
+              childAges: state.childAges,
+              scienceVisits: state.scienceVisits,
+              dpkhVisits: state.dpkhVisits,
+              dpkrVisits: state.dpkrVisits,
+              isRichmondResident: state.isRichmondResident,
+              needsFlexibility: state.needsFlexibility,
+              isWelcomeEligible: state.isWelcomeEligible,
+              includeParking: state.includeParking,
+              discountType: state.discountType, // Pass discount type to calculator
+            }
           );
-          if (assertiveRegion) {
-            assertiveRegion.textContent = message;
+
+          // Calculate primary location icon
+          const primaryLocationIcon =
+            AdmissionCostCalculator.determinePrimaryLocation(
+              state.scienceVisits,
+              state.dpkhVisits,
+              state.dpkrVisits
+            );
+
+          // Calculate visit distribution data
+          const visitDistributionData = [];
+          if (state.scienceVisits > 0) {
+            visitDistributionData.push({
+              name: "Science",
+              value: state.scienceVisits,
+              color: "#00369e",
+            });
+          }
+          if (state.dpkhVisits > 0) {
+            visitDistributionData.push({
+              name: "Kids-Huntersville",
+              value: state.dpkhVisits,
+              color: "#f5821f",
+            });
+          }
+          if (state.dpkrVisits > 0) {
+            visitDistributionData.push({
+              name: "Kids-Rockingham",
+              value: state.dpkrVisits,
+              color: "#8dc63f",
+            });
+          }
+
+          // Only update state if component is still mounted
+          if (isMounted.current) {
+            dispatch({
+              type: ACTION_TYPES.UPDATE_RECOMMENDATION,
+              payload: {
+                recommendation,
+                primaryLocationIcon,
+                visitDistributionData,
+              },
+            });
           }
         } catch (error) {
-          console.error("Error updating assertive announcement region:", error);
+          console.error("Error calculating recommendation:", error);
+          // Handle error appropriately
+          if (isMounted.current) {
+            dispatch({
+              type: ACTION_TYPES.SET_IS_CALCULATING,
+              payload: false,
+            });
+            dispatch({
+              type: ACTION_TYPES.SET_ANNOUNCEMENT,
+              payload:
+                "An error occurred while calculating your recommendation. Please check your inputs and try again.",
+            });
+          }
         }
-      }
-    },
-    []
-  );
+      }, 100); // Small delay to ensure UI responsiveness
 
-  /**
-   * Event handler for child age change
-   */
-  const handleChildAgeChange = useCallback(
-    (index, age) => {
-      // Handle empty string case by not validating immediately
-      if (age === "") {
-        dispatch({
-          type: ACTION_TYPES.SET_CHILD_AGE,
-          payload: { index, age: "" },
-        });
-        return;
-      }
+      // Cleanup timeout on unmount or when effect re-runs
+      return () => clearTimeout(timeoutId);
+    }
+  }, [state.needsRecommendationUpdate, state.currentStep, state]);
 
-      // Parse to number and validate
-      const numAge = Number(age);
-      dispatch({
-        type: ACTION_TYPES.SET_CHILD_AGE,
-        payload: { index, age: numAge },
-      });
+  // Handler functions
+  const handleNextStep = useCallback(() => {
+    const nextStep = Math.min(state.currentStep + 1, 3);
+    dispatch({ type: ACTION_TYPES.SET_STEP, payload: nextStep });
+  }, [state.currentStep]);
 
-      // Validate on change
-      const newErrors = { ...errors };
-      if (isNaN(numAge) || numAge < 0 || numAge > 17) {
-        newErrors.childAges[
-          index
-        ] = `Please enter a valid age between 0 and 17`;
-      } else {
-        newErrors.childAges[index] = "";
-      }
-      setErrors(newErrors);
-    },
-    [errors]
-  );
+  const handlePrevStep = useCallback(() => {
+    const prevStep = Math.max(state.currentStep - 1, 1);
+    dispatch({ type: ACTION_TYPES.SET_STEP, payload: prevStep });
+  }, [state.currentStep]);
 
-  // Handle various form changes with action creators
-  const handleScienceVisitsChange = createActionDispatcher(
-    ACTION_TYPES.SET_SCIENCE_VISITS
-  );
-  const handleDpkhVisitsChange = createActionDispatcher(
-    ACTION_TYPES.SET_DPKH_VISITS
-  );
-  const handleDpkrVisitsChange = createActionDispatcher(
-    ACTION_TYPES.SET_DPKR_VISITS
-  );
-  const handleRichmondResidentChange = createActionDispatcher(
-    ACTION_TYPES.SET_RICHMOND_RESIDENT
-  );
-  const handleFlexibilityChange = createActionDispatcher(
-    ACTION_TYPES.SET_NEEDS_FLEXIBILITY
-  );
-  const handleWelcomeEligibleChange = createActionDispatcher(
-    ACTION_TYPES.SET_WELCOME_ELIGIBLE
-  );
-  const handleIncludeParkingChange = createActionDispatcher(
-    ACTION_TYPES.SET_INCLUDE_PARKING
-  );
+  const handleAdultCountChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_ADULT_COUNT, payload: value });
+  }, []);
 
-  /**
-   * Reset calculator function
-   */
-  const handleResetCalculator = useCallback(() => {
-    resetCalculator();
+  const handleChildrenCountChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_CHILDREN_COUNT, payload: value });
+  }, []);
 
-    // Reset the initialRender ref so the next render is treated as initial
-    initialRenderRef.current = true;
+  const handleChildAgeChange = useCallback((index, value) => {
+    dispatch({ type: ACTION_TYPES.SET_CHILD_AGE, payload: { index, age: value } });
+  }, []);
 
-    // Announce for screen readers
-    announceToScreenReader(
-      "Calculator has been reset to defaults.",
-      "assertive"
-    );
-  }, [announceToScreenReader]);
+  const handleScienceVisitsChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_SCIENCE_VISITS, payload: value });
+  }, []);
 
-  // Handle error logging
-  const handleError = useCallback(
-    (error, errorInfo) => {
-      // Log the error to console
-      console.error("Error caught by ErrorBoundary:", error, errorInfo);
+  const handleDpkhVisitsChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_DPKH_VISITS, payload: value });
+  }, []);
 
-      // Here you would typically send to an error logging service
-      // Example: errorLoggingService.logError(error, errorInfo);
+  const handleDpkrVisitsChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_DPKR_VISITS, payload: value });
+  }, []);
 
-      // Display a user-friendly message
-      announceToScreenReader(
-        "Sorry, something went wrong with the calculator. We've been notified and will fix it soon.",
-        "assertive"
-      );
-    },
-    [announceToScreenReader]
-  );
+  const handleRichmondResidentChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_RICHMOND_RESIDENT, payload: value });
+  }, []);
+
+  const handleNeedsFlexibilityChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_NEEDS_FLEXIBILITY, payload: value });
+  }, []);
+
+  const handleWelcomeEligibleChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_WELCOME_ELIGIBLE, payload: value });
+  }, []);
+
+  const handleIncludeParkingChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_INCLUDE_PARKING, payload: value });
+  }, []);
+
+  const handleDiscountTypeChange = useCallback((value) => {
+    dispatch({ type: ACTION_TYPES.SET_DISCOUNT_TYPE, payload: value });
+  }, []);
+
+  const handleReset = useCallback(() => {
+    dispatch({ type: ACTION_TYPES.RESET_CALCULATOR });
+  }, []);
 
   return (
-    <div className="calculator-container bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
-      {/* Skip navigation for accessibility */}
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-
-      {/* Screen reader announcements */}
-      <div className="sr-only" aria-live="polite">
-        {announcement}
-      </div>
+    <ErrorBoundary
+      componentName="MembershipCalculatorApp"
+      onError={(error) =>
+        console.error("Error in MembershipCalculatorApp:", error)
+      }
+      showDetails={false}
+    >
       <div
-        id="assertive-announcements"
-        className="sr-only"
-        aria-live="assertive"
-      ></div>
-
-      <main id="main-content">
-        {/* Wrap with ErrorBoundary for better error handling */}
-        <ErrorBoundary
-          componentName="Membership Calculator"
-          showDetails={false}
-          onError={handleError}
-        >
-          {/* Loading indicator for calculation */}
-          {isCalculating && currentStep === 3 && (
-            <div
-              className="calculation-loading"
-              style={{
-                padding: "20px",
-                margin: "20px 0",
-                backgroundColor: "#ebf8ff",
-                borderRadius: "8px",
-                border: "1px solid #bee3f8",
-                textAlign: "center",
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-              }}
-              aria-live="polite"
-            >
-              <div
-                className="loading-spinner"
-                style={{
-                  display: "inline-block",
-                  width: "30px",
-                  height: "30px",
-                  border: "3px solid rgba(66, 153, 225, 0.3)",
-                  borderRadius: "50%",
-                  borderTop: "3px solid #4299e1",
-                  animation: "spin 1s linear infinite",
-                  marginRight: "10px",
-                  verticalAlign: "middle",
-                }}
-                role="progressbar"
-                aria-label="Loading recommendation"
-              />
-              <span
-                style={{
-                  fontSize: "16px",
-                  fontWeight: "500",
-                  color: "#2b6cb0",
-                  display: "inline-block",
-                  verticalAlign: "middle",
-                }}
-              >
-                Calculating your personalized membership recommendation...
-              </span>
-              <style>
-                {`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}
-              </style>
-            </div>
-          )}
-
-          {/* Use MembershipTools component instead of directly rendering calculator components */}
-          <MembershipTools
-            currentStep={currentStep}
-            adultCount={adultCount}
-            childrenCount={childrenCount}
-            childAges={childAges}
-            scienceVisits={scienceVisits}
-            dpkhVisits={dpkhVisits}
-            dpkrVisits={dpkrVisits}
-            isRichmondResident={isRichmondResident}
-            needsFlexibility={needsFlexibility}
-            isWelcomeEligible={isWelcomeEligible}
-            includeParking={includeParking}
-            errors={errors}
-            membershipRecommendation={membershipRecommendation}
-            isCalculating={isCalculating} // Pass down calculating state
+        className="App"
+        style={{
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          maxWidth: "1200px",
+          margin: "0 auto",
+          padding: "20px",
+        }}
+      >
+        {/* Show Welcome notification if eligible */}
+        {state.isWelcomeEligible && (
+          <WelcomeNotification
+            welcomeOption={state.membershipRecommendation?.welcomeProgramOption}
             formatCurrency={formatCurrency}
-            onNextStep={nextStep}
-            onPrevStep={prevStep}
-            onAdultCountChange={setAdultCount}
-            onChildrenCountChange={setChildrenCount}
-            onChildAgeChange={handleChildAgeChange}
-            onRichmondResidentChange={handleRichmondResidentChange}
-            onFlexibilityChange={handleFlexibilityChange}
-            onWelcomeEligibleChange={handleWelcomeEligibleChange}
-            onScienceVisitsChange={handleScienceVisitsChange}
-            onDpkhVisitsChange={handleDpkhVisitsChange}
-            onDpkrVisitsChange={handleDpkrVisitsChange}
-            onIncludeParkingChange={handleIncludeParkingChange}
           />
-        </ErrorBoundary>
-
-        {/* This section appears below both calculators */}
-        {currentStep === 3 && !isCalculating && (
-          <div>
-            {/* Welcome Program Notification (only show if relevant) */}
-            {isWelcomeEligible &&
-              membershipRecommendation?.bestMembershipType !== "Welcome" &&
-              membershipRecommendation?.welcomeProgramOption && (
-                <ErrorBoundary componentName="Welcome Notification">
-                  <WelcomeNotification
-                    welcomeOption={
-                      membershipRecommendation.welcomeProgramOption
-                    }
-                    formatCurrency={formatCurrency}
-                  />
-                </ErrorBoundary>
-              )}
-
-            {/* Situation Breakdown */}
-            <ErrorBoundary componentName="Situation Breakdown">
-              <SituationBreakdown primaryLocationIcon={primaryLocationIcon} />
-            </ErrorBoundary>
-
-            {/* Navigation Buttons */}
-            <div className="button-group">
-              <button
-                onClick={prevStep}
-                className="secondary-button"
-                aria-label="Go back to adjust your visit plans"
-              >
-                Adjust My Visit Plans
-              </button>
-              <button
-                onClick={handleResetCalculator}
-                className="secondary-button"
-                aria-label="Start over from the beginning"
-              >
-                Start Over
-              </button>
-            </div>
-          </div>
         )}
-      </main>
-    </div>
-  );
-};
 
-export default DiscoveryPlaceMembershipCalculator;
+        {/* Main membership tools component */}
+        <MembershipTools
+          currentStep={state.currentStep}
+          adultCount={state.adultCount}
+          childrenCount={state.childrenCount}
+          childAges={state.childAges}
+          scienceVisits={state.scienceVisits}
+          dpkhVisits={state.dpkhVisits}
+          dpkrVisits={state.dpkrVisits}
+          isRichmondResident={state.isRichmondResident}
+          needsFlexibility={state.needsFlexibility}
+          isWelcomeEligible={state.isWelcomeEligible}
+          includeParking={state.includeParking}
+          discountType={state.discountType}
+          errors={state.errors}
+          membershipRecommendation={state.membershipRecommendation}
+          primaryLocationIcon={state.primaryLocationIcon}
+          visitDistributionData={state.visitDistributionData}
+          formatCurrency={formatCurrency}
+          isCalculating={state.isCalculating}
+          onAdultCountChange={handleAdultCountChange}
+          onChildrenCountChange={handleChildrenCountChange}
+          onChildAgeChange={handleChildAgeChange}
+          onScienceVisitsChange={handleScienceVisitsChange}
+          onDpkhVisitsChange={handleDpkhVisitsChange}
+          onDpkrVisitsChange={handleDpkrVisitsChange}
+          onRichmondResidentChange={handleRichmondResidentChange}
+          onNeedsFlexibilityChange={handleNeedsFlexibilityChange}
+          onWelcomeEligibleChange={handleWelcomeEligibleChange}
+          onIncludeParkingChange={handleIncludeParkingChange}
+          onDiscountTypeChange={handleDiscountTypeChange}
+          onNextStep={handleNextStep}
+          onPrevStep={handlePrevStep}
+          onReset={handleReset}
+        />
+
+        {/* Situation breakdown guide */}
+        <SituationBreakdown primaryLocationIcon={state.primaryLocationIcon} />
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
