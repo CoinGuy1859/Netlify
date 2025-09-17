@@ -298,11 +298,13 @@ function App() {
   // Calculate membership recommendation when needed
   useEffect(() => {
     if (state.needsRecommendationUpdate && state.currentStep === 3) {
+      console.log("🟡 useEffect triggered! Starting recommendation calculation...");
       // Set calculating state
       dispatch({ type: ACTION_TYPES.SET_IS_CALCULATING, payload: true });
 
       // Use a small delay to ensure UI updates
       const timeoutId = setTimeout(() => {
+        console.log("🟡 setTimeout started, about to calculate...");
         try {
           console.log("🟡 Starting calculation with data:", {
             adultCount: state.adultCount, childrenCount: state.childrenCount,
