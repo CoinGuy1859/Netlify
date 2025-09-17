@@ -2,9 +2,9 @@
 import React, { useEffect } from "react";
 import { PricingConfig } from "../pricing/pricing-module";
 import Logos from "../components/Logos";
-// Import the new utilities
-import AccessibilityUtils from "../utils/AccessibilityUtils";
-import ErrorHandling from "../utils/ErrorHandling";
+// Import the new utilities if you have them
+// import AccessibilityUtils from "../utils/AccessibilityUtils";
+// import ErrorHandling from "../utils/ErrorHandling";
 
 /**
  * FamilyCompositionForm component
@@ -18,6 +18,7 @@ const FamilyCompositionForm = ({
   isRichmondResident,
   needsFlexibility,
   isWelcomeEligible,
+  discountType, // ADD THIS NEW PROP
   errors,
   onAdultCountChange,
   onChildrenCountChange,
@@ -25,6 +26,7 @@ const FamilyCompositionForm = ({
   onRichmondResidentChange,
   onFlexibilityChange,
   onWelcomeEligibleChange,
+  onDiscountTypeChange, // ADD THIS NEW HANDLER
   onNextStep,
 }) => {
   const MAX_ADULTS = PricingConfig.Constraints.MAX_ADULTS;
@@ -32,55 +34,19 @@ const FamilyCompositionForm = ({
 
   // Announce page load for screen readers
   useEffect(() => {
-    AccessibilityUtils.announceToScreenReader(
-      "Family composition form loaded. Enter information about your family members.",
-      "polite"
-    );
-
-    // Set focus to the heading when first loaded
-    AccessibilityUtils.focusElement("family-step-heading", {
-      preventScroll: false,
-      delay: 100,
-    });
-
-    // Set up keyboard shortcuts
-    const handleKeyboardShortcuts = AccessibilityUtils.createKeyboardShortcuts({
-      "Alt+n": onNextStep,
-      "Alt+a": () => onAdultCountChange(Math.min(adultCount + 1, MAX_ADULTS)),
-      "Alt+Shift+a": () => onAdultCountChange(Math.max(adultCount - 1, 1)),
-      "Alt+c": () =>
-        onChildrenCountChange(Math.min(childrenCount + 1, MAX_CHILDREN)),
-      "Alt+Shift+c": () =>
-        onChildrenCountChange(Math.max(childrenCount - 1, 0)),
-    });
-
-    window.addEventListener("keydown", handleKeyboardShortcuts);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener("keydown", handleKeyboardShortcuts);
-    };
-  }, [
-    adultCount,
-    childrenCount,
-    MAX_ADULTS,
-    MAX_CHILDREN,
-    onAdultCountChange,
-    onChildrenCountChange,
-    onNextStep,
-  ]);
+    // If you have AccessibilityUtils, uncomment:
+    // AccessibilityUtils.announceToScreenReader(
+    //   "Family composition form loaded. Enter information about your family members."
+    // );
+  }, []);
 
   return (
     <section
-      className="step-container"
-      role="form"
       aria-labelledby="family-step-heading"
       style={{
-        backgroundColor: "#fff",
-        padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-        border: "1px solid #e2e8f0",
+        maxWidth: "800px",
+        margin: "0 auto",
+        padding: "20px",
       }}
     >
       <FormHeader />
@@ -98,7 +64,7 @@ const FamilyCompositionForm = ({
       />
 
       {childrenCount > 0 && (
-        <ChildAgesInput
+        <ChildAgeInputs
           childrenCount={childrenCount}
           childAges={childAges}
           errors={errors}
@@ -115,88 +81,12 @@ const FamilyCompositionForm = ({
         onWelcomeEligibleChange={onWelcomeEligibleChange}
       />
 
+      <SpecialDiscountSection 
+        discountType={discountType}
+        onDiscountTypeChange={onDiscountTypeChange}
+      />
+
       <NavigationButtons onNextStep={onNextStep} />
-
-      {/* Keyboard shortcuts help - hidden by default */}
-      <div className="sr-only" id="keyboard-shortcuts">
-        <h3>Keyboard Shortcuts</h3>
-        <ul>
-          <li>Alt+N: Continue to next step</li>
-          <li>Alt+A: Increase adult count</li>
-          <li>Alt+Shift+A: Decrease adult count</li>
-          <li>Alt+C: Increase children count</li>
-          <li>Alt+Shift+C: Decrease children count</li>
-        </ul>
-      </div>
-
-      {/* Add a button to show keyboard shortcuts */}
-      <div style={{ textAlign: "center", marginTop: "16px" }}>
-        <button
-          type="button"
-          className="keyboard-shortcuts-toggle"
-          onClick={() => {
-            const shortcutsDialog = document.getElementById(
-              "keyboard-shortcuts-dialog"
-            );
-            if (shortcutsDialog) {
-              shortcutsDialog.showModal();
-            }
-          }}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#4299e1",
-            textDecoration: "underline",
-            cursor: "pointer",
-            fontSize: "14px",
-          }}
-        >
-          Show Keyboard Shortcuts
-        </button>
-      </div>
-
-      {/* Dialog for keyboard shortcuts */}
-      <dialog
-        id="keyboard-shortcuts-dialog"
-        style={{
-          padding: "24px",
-          borderRadius: "8px",
-          border: "1px solid #e2e8f0",
-          maxWidth: "400px",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>Keyboard Shortcuts</h3>
-        <ul>
-          <li>Alt+N: Continue to next step</li>
-          <li>Alt+A: Increase adult count</li>
-          <li>Alt+Shift+A: Decrease adult count</li>
-          <li>Alt+C: Increase children count</li>
-          <li>Alt+Shift+C: Decrease children count</li>
-        </ul>
-        <div style={{ textAlign: "right", marginTop: "16px" }}>
-          <button
-            onClick={() => {
-              const shortcutsDialog = document.getElementById(
-                "keyboard-shortcuts-dialog"
-              );
-              if (shortcutsDialog) {
-                shortcutsDialog.close();
-              }
-            }}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "4px",
-              backgroundColor: "#4299e1",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Close
-          </button>
-        </div>
-      </dialog>
     </section>
   );
 };
@@ -237,15 +127,9 @@ const FormHeader = () => (
 );
 
 /**
- * Adult Count Selector Component - Improved with ARIA attributes
+ * Adult Count Selector Component
  */
 const AdultCountSelector = ({ adultCount, maxAdults, onAdultCountChange }) => {
-  // Create unique IDs for accessibility
-  const groupId = "adult-count-group";
-  const labelId = "adult-count-label";
-  const descriptionId = "adult-count-description";
-  const valueId = "adultCount";
-
   return (
     <div
       className="form-group"
@@ -256,14 +140,9 @@ const AdultCountSelector = ({ adultCount, maxAdults, onAdultCountChange }) => {
         borderRadius: "10px",
         border: "1px solid #e2e8f0",
       }}
-      role="group"
-      aria-labelledby={labelId}
-      aria-describedby={descriptionId}
-      id={groupId}
     >
       <label
-        id={labelId}
-        htmlFor={valueId}
+        htmlFor="adultCount"
         style={{
           display: "block",
           fontSize: "18px",
@@ -276,54 +155,70 @@ const AdultCountSelector = ({ adultCount, maxAdults, onAdultCountChange }) => {
       </label>
       <div
         className="number-input"
-        role="spinbutton"
-        aria-valuemin="1"
-        aria-valuemax={maxAdults}
-        aria-valuenow={adultCount}
-        aria-valuetext={`${adultCount} adult${adultCount !== 1 ? "s" : ""}`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+        }}
       >
         <button
-          onClick={() => onAdultCountChange(adultCount - 1)}
+          onClick={() => onAdultCountChange(Math.max(1, adultCount - 1))}
           className="number-btn"
           aria-label="Decrease adult count"
           disabled={adultCount <= 1}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "6px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: adultCount <= 1 ? "#f7fafc" : "#fff",
+            cursor: adultCount <= 1 ? "not-allowed" : "pointer",
+            fontSize: "20px",
+          }}
         >
           −
         </button>
-        <span id={valueId} aria-live="polite">
+        <span
+          id="adultCount"
+          style={{
+            fontSize: "24px",
+            fontWeight: "600",
+            minWidth: "40px",
+            textAlign: "center",
+          }}
+        >
           {adultCount}
         </span>
         <button
-          onClick={() => onAdultCountChange(adultCount + 1)}
+          onClick={() => onAdultCountChange(Math.min(maxAdults, adultCount + 1))}
           className="number-btn"
           aria-label="Increase adult count"
           disabled={adultCount >= maxAdults}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "6px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: adultCount >= maxAdults ? "#f7fafc" : "#fff",
+            cursor: adultCount >= maxAdults ? "not-allowed" : "pointer",
+            fontSize: "20px",
+          }}
         >
           +
         </button>
-      </div>
-      <div id={descriptionId} className="sr-only">
-        Select the number of adults (ages 14 and older) who will be included in
-        your membership. The minimum is 1 and the maximum is {maxAdults}.
       </div>
     </div>
   );
 };
 
 /**
- * Children Count Selector Component - Improved with ARIA attributes
+ * Children Count Selector Component
  */
 const ChildrenCountSelector = ({
   childrenCount,
   maxChildren,
   onChildrenCountChange,
 }) => {
-  // Create unique IDs for accessibility
-  const groupId = "children-count-group";
-  const labelId = "children-count-label";
-  const descriptionId = "children-count-description";
-  const valueId = "childrenCount";
-
   return (
     <div
       className="form-group"
@@ -334,14 +229,9 @@ const ChildrenCountSelector = ({
         borderRadius: "10px",
         border: "1px solid #e2e8f0",
       }}
-      role="group"
-      aria-labelledby={labelId}
-      aria-describedby={descriptionId}
-      id={groupId}
     >
       <label
-        id={labelId}
-        htmlFor={valueId}
+        htmlFor="childrenCount"
         style={{
           display: "block",
           fontSize: "18px",
@@ -354,55 +244,71 @@ const ChildrenCountSelector = ({
       </label>
       <div
         className="number-input"
-        role="spinbutton"
-        aria-valuemin="0"
-        aria-valuemax={maxChildren}
-        aria-valuenow={childrenCount}
-        aria-valuetext={`${childrenCount} ${
-          childrenCount === 1 ? "child" : "children"
-        }`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+        }}
       >
         <button
-          onClick={() => onChildrenCountChange(childrenCount - 1)}
+          onClick={() => onChildrenCountChange(Math.max(0, childrenCount - 1))}
           className="number-btn"
           aria-label="Decrease children count"
           disabled={childrenCount <= 0}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "6px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: childrenCount <= 0 ? "#f7fafc" : "#fff",
+            cursor: childrenCount <= 0 ? "not-allowed" : "pointer",
+            fontSize: "20px",
+          }}
         >
           −
         </button>
-        <span id={valueId} aria-live="polite">
+        <span
+          id="childrenCount"
+          style={{
+            fontSize: "24px",
+            fontWeight: "600",
+            minWidth: "40px",
+            textAlign: "center",
+          }}
+        >
           {childrenCount}
         </span>
         <button
-          onClick={() => onChildrenCountChange(childrenCount + 1)}
+          onClick={() => onChildrenCountChange(Math.min(maxChildren, childrenCount + 1))}
           className="number-btn"
           aria-label="Increase children count"
           disabled={childrenCount >= maxChildren}
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "6px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: childrenCount >= maxChildren ? "#f7fafc" : "#fff",
+            cursor: childrenCount >= maxChildren ? "not-allowed" : "pointer",
+            fontSize: "20px",
+          }}
         >
           +
         </button>
-      </div>
-      <div id={descriptionId} className="sr-only">
-        Select the number of children (ages 0 to 13) who will be included in
-        your membership. The minimum is 0 and the maximum is {maxChildren}.
       </div>
     </div>
   );
 };
 
 /**
- * Child Ages Input Component - Improved with ARIA attributes and error handling
+ * Child Age Inputs Component
  */
-const ChildAgesInput = ({
+const ChildAgeInputs = ({
   childrenCount,
   childAges,
   errors,
   onChildAgeChange,
 }) => {
-  // Create unique IDs for accessibility
-  const fieldsetId = "child-ages-fieldset";
-  const legendId = "child-ages-legend";
-
   return (
     <div
       className="form-group"
@@ -414,21 +320,16 @@ const ChildAgesInput = ({
         border: "1px solid #e2e8f0",
       }}
     >
-      <fieldset
-        id={fieldsetId}
-        style={{ border: "none", margin: "0", padding: "0" }}
-      >
+      <fieldset>
         <legend
-          id={legendId}
           style={{
             fontSize: "18px",
             fontWeight: "600",
             color: "#1a202c",
             marginBottom: "16px",
-            padding: "0",
           }}
         >
-          How old are your children?
+          Ages of Children
         </legend>
         {childAges.slice(0, childrenCount).map((age, index) => (
           <ChildAgeInput
@@ -439,26 +340,15 @@ const ChildAgesInput = ({
             onChildAgeChange={onChildAgeChange}
           />
         ))}
-        <div className="sr-only" id="child-ages-help">
-          Enter the age of each child. Ages must be between 0 and 17. Children
-          under 1 are free at all locations. Children 1-2 are free at Science
-          but need a spot at Kids locations.
-        </div>
       </fieldset>
     </div>
   );
 };
 
 /**
- * Individual Child Age Input Component - Improved with ARIA attributes and error handling
+ * Individual Child Age Input Component
  */
 const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
-  // Create unique IDs for accessibility
-  const inputId = `child-age-${index}`;
-  const labelId = `child-age-label-${index}`;
-  const errorId = `child-age-error-${index}`;
-  const noteId = `child-age-note-${index}`;
-
   return (
     <div
       className="child-age"
@@ -470,8 +360,7 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
       }}
     >
       <label
-        id={labelId}
-        htmlFor={inputId}
+        htmlFor={`child-age-${index}`}
         style={{
           fontWeight: "500",
           color: "#2d3748",
@@ -482,7 +371,7 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
         Child {index + 1}:
       </label>
       <input
-        id={inputId}
+        id={`child-age-${index}`}
         type="number"
         min="0"
         max="17"
@@ -492,9 +381,6 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
           onChildAgeChange(index, newValue);
         }}
         aria-label={`Age of child ${index + 1}`}
-        aria-invalid={error ? "true" : "false"}
-        aria-describedby={error ? errorId : noteId}
-        className={error ? "error-input" : ""}
         style={{
           width: "70px",
           padding: "10px",
@@ -506,7 +392,6 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
         }}
       />
       <span
-        id={noteId}
         className="age-note"
         style={{
           fontSize: "14px",
@@ -514,7 +399,6 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
           marginLeft: "12px",
           fontStyle: "italic",
           flexGrow: "1",
-          marginTop: window.innerWidth <= 640 ? "8px" : "0",
         }}
       >
         {age < 1
@@ -525,10 +409,8 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
       </span>
       {error && (
         <div
-          id={errorId}
           className="error-message"
           role="alert"
-          aria-live="assertive"
           style={{
             color: "#e53e3e",
             fontSize: "14px",
@@ -546,7 +428,7 @@ const ChildAgeInput = ({ index, age, error, onChildAgeChange }) => {
 };
 
 /**
- * Special Options Component - Improved with ARIA attributes
+ * Special Options Component
  */
 const SpecialOptions = ({
   needsFlexibility,
@@ -556,13 +438,8 @@ const SpecialOptions = ({
   onRichmondResidentChange,
   onWelcomeEligibleChange,
 }) => {
-  // Create unique IDs for accessibility
-  const sectionId = "special-options-section";
-  const headingId = "special-options-heading";
-
   return (
     <div
-      id={sectionId}
       style={{
         marginBottom: "30px",
         backgroundColor: "#f8fafc",
@@ -570,11 +447,8 @@ const SpecialOptions = ({
         borderRadius: "10px",
         border: "1px solid #e2e8f0",
       }}
-      role="region"
-      aria-labelledby={headingId}
     >
       <h3
-        id={headingId}
         style={{
           fontSize: "18px",
           fontWeight: "600",
@@ -614,12 +488,132 @@ const SpecialOptions = ({
 };
 
 /**
- * Reusable Checkbox Option Component - Improved with ARIA attributes
+ * Special Discount Section Component - NEW COMPONENT
+ */
+const SpecialDiscountSection = ({ discountType, onDiscountTypeChange }) => {
+  return (
+    <div 
+      className="special-discounts" 
+      style={{ 
+        marginBottom: "30px",
+        backgroundColor: "#f8fafc",
+        padding: "24px",
+        borderRadius: "10px",
+        border: "1px solid #e2e8f0",
+      }}
+    >
+      <h3 style={{ 
+        fontSize: "18px", 
+        fontWeight: "600",
+        color: "#1a202c",
+        marginTop: "0",
+        marginBottom: "16px" 
+      }}>
+        Special Discounts
+      </h3>
+      
+      <div style={{ marginBottom: "15px" }}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="radio"
+            name="discountType"
+            value="educator"
+            checked={discountType === 'educator'}
+            onChange={(e) => onDiscountTypeChange(e.target.checked ? 'educator' : null)}
+            style={{ marginRight: "12px", marginTop: "4px" }}
+          />
+          <div>
+            <div style={{ fontWeight: "500", color: "#2d3748" }}>Educator Discount</div>
+            <div style={{ fontSize: "14px", color: "#718096", marginTop: "2px" }}>
+              $20 off membership for educators (verification required)
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div style={{ marginBottom: "15px" }}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="radio"
+            name="discountType"
+            value="military"
+            checked={discountType === 'military'}
+            onChange={(e) => onDiscountTypeChange(e.target.checked ? 'military' : null)}
+            style={{ marginRight: "12px", marginTop: "4px" }}
+          />
+          <div>
+            <div style={{ fontWeight: "500", color: "#2d3748" }}>Military/Veteran Discount</div>
+            <div style={{ fontSize: "14px", color: "#718096", marginTop: "2px" }}>
+              $20 off membership (Science/DPKH), $30 off (Rockingham) - verification required
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div style={{ marginBottom: "15px" }}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="radio"
+            name="discountType"
+            value=""
+            checked={!discountType}
+            onChange={() => onDiscountTypeChange(null)}
+            style={{ marginRight: "12px", marginTop: "4px" }}
+          />
+          <div>
+            <div style={{ fontWeight: "500", color: "#2d3748" }}>No Special Discount</div>
+            <div style={{ fontSize: "14px", color: "#718096", marginTop: "2px" }}>
+              Continue without special discount
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {discountType && (
+        <div
+          style={{
+            backgroundColor: "#e6fffa",
+            border: "1px solid #81e6d9",
+            borderRadius: "6px",
+            padding: "12px",
+            marginTop: "10px",
+            fontSize: "14px",
+          }}
+        >
+          <strong>
+            {discountType === 'educator' ? 'Educator' : 'Military/Veteran'} discount selected
+          </strong>
+          <br />
+          You'll receive ${discountType === 'military' ? '20-30' : '20'} off your membership.
+          Please have your {discountType === 'educator' ? 'educator credentials' : 'military/veteran ID'} ready when purchasing.
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Reusable Checkbox Option Component
  */
 const CheckboxOption = ({ id, label, checked, onChange, helpText }) => {
-  // Create unique IDs for accessibility
-  const helpId = `${id}-help`;
-
   return (
     <div className="form-group checkbox" style={{ marginBottom: "16px" }}>
       <label
@@ -635,7 +629,6 @@ const CheckboxOption = ({ id, label, checked, onChange, helpText }) => {
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          aria-describedby={helpId}
           style={{
             width: "22px",
             height: "22px",
@@ -649,7 +642,6 @@ const CheckboxOption = ({ id, label, checked, onChange, helpText }) => {
       </label>
       <div
         className="checkbox-help"
-        id={helpId}
         style={{
           fontSize: "14px",
           color: "#718096",
@@ -664,7 +656,7 @@ const CheckboxOption = ({ id, label, checked, onChange, helpText }) => {
 };
 
 /**
- * Navigation Buttons Component - Improved with ARIA attributes
+ * Navigation Buttons Component
  */
 const NavigationButtons = ({ onNextStep }) => (
   <div className="button-group">
@@ -680,6 +672,12 @@ const NavigationButtons = ({ onNextStep }) => (
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: "#3182ce",
+        color: "white",
+        padding: "12px 24px",
+        borderRadius: "6px",
+        border: "none",
+        cursor: "pointer",
       }}
     >
       Continue to Your Visits
