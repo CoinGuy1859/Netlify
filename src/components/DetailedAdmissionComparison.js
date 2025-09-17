@@ -19,12 +19,92 @@ const DetailedAdmissionComparison = ({
 }) => {
   const [showAdmissionDetails, setShowAdmissionDetails] = useState(false);
 
-  // Extract values from recommendation
-  const totalCost = recommendation.bestMembershipPromoCost || 0;
+  // Calculate the actual membership costs (membership + parking + cross-location)
+  const getMembershipEstimatedCost = () => {
+    if (!recommendation) {
+      console.warn("DetailedAdmissionComparison: No recommendation provided");
+      return 0;
+    }
+    
+    // Debug logging to help identify the issue
+    console.log("Recommendation object:", recommendation);
+    console.log("baseMembershipPrice:", recommendation.baseMembershipPrice);
+    console.log("baseMembershipDiscount:", recommendation.baseMembershipDiscount);
+    console.log("bestMembershipPromoCost:", recommendation.bestMembershipPromoCost);
+    console.log("bestMembershipType:", recommendation.bestMembershipType);
+    console.log("additionalCosts:", recommendation.additionalCosts);
+    console.log("costBreakdown:", recommendation.costBreakdown);
+    
+    // Handle different recommendation types
+    if (recommendation.bestMembershipType === "PayAsYouGo") {
+      // For Pay As You Go, the cost is just the regular admission cost
+      return recommendation.regularAdmissionCost || 0;
+    }
+    
+    if (recommendation.bestMembershipType === "Welcome" && recommendation.welcomeProgramOption) {
+      // For Welcome Program, use the total price from the welcome option
+      const welcomeTotal = recommendation.welcomeProgramOption.totalPrice || 
+                          recommendation.welcomeProgramOption.basePrice || 0;
+      return welcomeTotal;
+    }
+    
+    // For regular memberships, use the base membership price
+    // Fall back through different fields to ensure we get a value
+    let membershipCost = recommendation.baseMembershipPrice || 
+                        recommendation.baseMembershipDiscount || 
+                        recommendation.bestMembershipPromoCost || 0;
+    
+    // If membership cost is still 0, try to calculate from costBreakdown items
+    if (membershipCost === 0 && recommendation.costBreakdown?.items) {
+      console.log("Attempting to calculate from costBreakdown items");
+      const membershipItem = recommendation.costBreakdown.items.find(item => 
+        item.label && (
+          item.label.includes("Membership") || 
+          item.label.includes("Science") ||
+          item.label.includes("DPKH") ||
+          item.label.includes("DPKR") ||
+          item.label.includes("Kids")
+        ) && !item.label.includes("Parking") && !item.label.includes("Cross")
+      );
+      if (membershipItem) {
+        membershipCost = membershipItem.cost || 0;
+        console.log("Found membership cost from breakdown:", membershipCost);
+      }
+    }
+    
+    if (membershipCost === 0) {
+      console.error("Warning: Membership cost is $0. This may indicate a data issue.");
+      console.error("Full recommendation object:", JSON.stringify(recommendation, null, 2));
+    }
+    
+    // Start with membership cost
+    let totalCost = membershipCost;
+    
+    // Add additional costs (parking and cross-location visits)
+    if (recommendation.additionalCosts && recommendation.additionalCosts.length > 0) {
+      recommendation.additionalCosts.forEach(item => {
+        console.log(`Adding additional cost: ${item.label} = ${item.cost}`);
+        totalCost += item.cost || 0;
+      });
+    }
+    
+    // Final fallback: if we still have $0, something is wrong
+    // Use the total promotional cost as a last resort
+    if (totalCost === 0 && recommendation.bestMembershipPromoCost > 0) {
+      console.log("Using bestMembershipPromoCost as fallback:", recommendation.bestMembershipPromoCost);
+      totalCost = recommendation.bestMembershipPromoCost;
+    }
+    
+    console.log("Total estimated membership cost:", totalCost);
+    return totalCost;
+  };
+  
+  // Get the actual estimated membership cost
+  const membershipEstimatedCost = getMembershipEstimatedCost();
   const regularAdmissionCost = recommendation.regularAdmissionCost || 0;
 
-  // Calculate savings
-  const totalSavings = Math.max(0, regularAdmissionCost - totalCost);
+  // Calculate savings based on the actual costs
+  const totalSavings = Math.max(0, regularAdmissionCost - membershipEstimatedCost);
 
   // Safeguard against impossible savings percentages
   const savingsPercentage =
@@ -60,11 +140,12 @@ const DetailedAdmissionComparison = ({
 
       <ComparisonCards
         regularAdmissionCost={regularAdmissionCost}
-        totalCost={totalCost}
+        totalCost={membershipEstimatedCost}
         totalSavings={totalSavings}
         savingsPercentage={savingsPercentage}
         totalVisits={scienceVisits + dpkhVisits + dpkrVisits}
         formatCurrency={formatCurrency}
+        recommendation={recommendation}
       />
 
       <ToggleButton
@@ -75,10 +156,11 @@ const DetailedAdmissionComparison = ({
       {showAdmissionDetails && (
         <DetailedBreakdown
           admissionBreakdown={admissionBreakdown}
-          totalCost={totalCost}
+          totalCost={membershipEstimatedCost}
           totalSavings={totalSavings}
           savingsPercentage={savingsPercentage}
           formatCurrency={formatCurrency}
+          recommendation={recommendation}
         />
       )}
     </div>
@@ -113,134 +195,100 @@ const ComparisonCards = ({
   savingsPercentage,
   totalVisits,
   formatCurrency,
-}) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: "20px",
-      paddingBottom: "10px",
-      borderBottom: "1px solid #e2e8f0",
-    }}
-  >
-    <PayPerVisitCard
-      regularAdmissionCost={regularAdmissionCost}
-      totalVisits={totalVisits}
-      formatCurrency={formatCurrency}
-    />
+  recommendation,  // Add recommendation prop
+}) => {
+  const isPayAsYouGo = recommendation?.bestMembershipType === "PayAsYouGo";
+  
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "15px",
+        marginBottom: "20px",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#feebc8",
+          padding: "15px",
+          borderRadius: "8px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "14px",
+            color: "#744210",
+            marginBottom: "5px",
+            fontWeight: "500",
+          }}
+        >
+          Regular Admission
+        </div>
+        <div
+          style={{
+            fontSize: "24px",
+            fontWeight: "700",
+            color: "#c05621",
+          }}
+        >
+          {formatCurrency(regularAdmissionCost)}
+        </div>
+        <div
+          style={{
+            fontSize: "12px",
+            color: "#744210",
+            marginTop: "5px",
+          }}
+        >
+          for {totalVisits} visits
+        </div>
+      </div>
 
-    <MembershipCard
-      totalCost={totalCost}
-      totalSavings={totalSavings}
-      savingsPercentage={savingsPercentage}
-      formatCurrency={formatCurrency}
-    />
-  </div>
-);
-
-/**
- * Pay Per Visit Card Component
- */
-const PayPerVisitCard = ({
-  regularAdmissionCost,
-  totalVisits,
-  formatCurrency,
-}) => (
-  <div
-    style={{
-      flex: 1,
-      padding: "10px",
-      backgroundColor: "#f7fafc",
-      borderRadius: "6px",
-      marginRight: "10px",
-    }}
-  >
-    <h5
-      style={{
-        margin: "0 0 10px 0",
-        fontSize: "16px",
-        fontWeight: "600",
-        color: "#2d3748",
-        textAlign: "center",
-      }}
-    >
-      Pay Per Visit
-    </h5>
-    <div
-      style={{
-        fontSize: "24px",
-        fontWeight: "700",
-        color: "#e53e3e",
-        textAlign: "center",
-        marginBottom: "5px",
-      }}
-    >
-      {formatCurrency(regularAdmissionCost)}
+      <div
+        style={{
+          backgroundColor: isPayAsYouGo ? "#fff3cd" : "#c6f6d5",
+          padding: "15px",
+          borderRadius: "8px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "14px",
+            color: isPayAsYouGo ? "#856404" : "#22543d",
+            marginBottom: "5px",
+            fontWeight: "500",
+          }}
+        >
+          {isPayAsYouGo ? "Recommended Option" : "With Membership"}
+        </div>
+        <div
+          style={{
+            fontSize: "24px",
+            fontWeight: "700",
+            color: isPayAsYouGo ? "#856404" : "#22863a",
+          }}
+        >
+          {formatCurrency(totalCost)}
+        </div>
+        <div
+          style={{
+            fontSize: "12px",
+            color: isPayAsYouGo ? "#856404" : "#22543d",
+            marginTop: "5px",
+            fontWeight: "600",
+          }}
+        >
+          {isPayAsYouGo ? "Pay As You Go" : 
+           totalSavings > 0 ? `You save ${formatCurrency(totalSavings)}!` : "Annual total"
+          }
+        </div>
+      </div>
     </div>
-    <div
-      style={{
-        fontSize: "14px",
-        color: "#718096",
-        textAlign: "center",
-      }}
-    >
-      Total for {totalVisits} visits
-    </div>
-  </div>
-);
-
-/**
- * Membership Card Component
- */
-const MembershipCard = ({
-  totalCost,
-  totalSavings,
-  savingsPercentage,
-  formatCurrency,
-}) => (
-  <div
-    style={{
-      flex: 1,
-      padding: "10px",
-      backgroundColor: "#f0fff4",
-      borderRadius: "6px",
-      marginLeft: "10px",
-    }}
-  >
-    <h5
-      style={{
-        margin: "0 0 10px 0",
-        fontSize: "16px",
-        fontWeight: "600",
-        color: "#2d3748",
-        textAlign: "center",
-      }}
-    >
-      With Membership
-    </h5>
-    <div
-      style={{
-        fontSize: "24px",
-        fontWeight: "700",
-        color: "#38a169",
-        textAlign: "center",
-        marginBottom: "5px",
-      }}
-    >
-      {formatCurrency(totalCost)}
-    </div>
-    <div
-      style={{
-        fontSize: "14px",
-        color: "#2f855a",
-        textAlign: "center",
-        fontWeight: "500",
-      }}
-    >
-      Save {formatCurrency(totalSavings)} ({savingsPercentage}%)
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * Toggle Button Component
@@ -249,22 +297,25 @@ const ToggleButton = ({ showDetails, setShowDetails }) => (
   <button
     onClick={() => setShowDetails(!showDetails)}
     style={{
+      width: "100%",
+      padding: "10px",
+      backgroundColor: "#ffffff",
+      border: "1px solid #cbd5e0",
+      borderRadius: "6px",
+      fontSize: "14px",
+      color: "#4a5568",
+      cursor: "pointer",
       display: "flex",
       alignItems: "center",
-      justifyContent: "flex-start",
-      background: "none",
-      border: "none",
-      color: "#4299e1",
-      cursor: "pointer",
-      fontSize: "15px",
-      padding: "10px 0",
-      textAlign: "left",
-      width: "100%",
-      fontWeight: "500",
+      justifyContent: "center",
+      gap: "8px",
+      transition: "background-color 0.2s",
     }}
+    onMouseEnter={(e) => (e.target.style.backgroundColor = "#f7fafc")}
+    onMouseLeave={(e) => (e.target.style.backgroundColor = "#ffffff")}
   >
-    <span style={{ marginRight: "5px" }}>{showDetails ? "▼" : "►"}</span>
-    {showDetails ? "Hide" : "Show"} detailed admission breakdown
+    {showDetails ? "Hide" : "Show"} Detailed Breakdown
+    <span style={{ fontSize: "12px" }}>{showDetails ? "▲" : "▼"}</span>
   </button>
 );
 
@@ -277,69 +328,55 @@ const DetailedBreakdown = ({
   totalSavings,
   savingsPercentage,
   formatCurrency,
+  recommendation,  // Add recommendation prop
 }) => (
   <div
-    className="detailed-admission-breakdown"
+    className="detailed-breakdown"
     style={{
       marginTop: "15px",
-      padding: "15px",
       backgroundColor: "#fff",
+      padding: "15px",
       borderRadius: "6px",
       border: "1px solid #e2e8f0",
     }}
   >
-    {admissionBreakdown.breakdown.map((location, locationIndex) => (
-      <LocationBreakdown
-        key={`location-${locationIndex}`}
-        location={location}
-        isLastLocation={
-          locationIndex === admissionBreakdown.breakdown.length - 1
-        }
-        formatCurrency={formatCurrency}
-      />
-    ))}
-
+    <LocationBreakdownTable
+      breakdown={admissionBreakdown.breakdown}
+      formatCurrency={formatCurrency}
+    />
     <AdmissionTotal
       grandTotal={admissionBreakdown.grandTotal}
       formatCurrency={formatCurrency}
     />
-
-    <MembershipComparison
-      totalCost={totalCost}
-      formatCurrency={formatCurrency}
+    <MembershipComparison 
+      totalCost={totalCost} 
+      recommendation={recommendation}  // Pass recommendation prop
+      formatCurrency={formatCurrency} 
     />
-
     <SavingsCallout
       totalSavings={totalSavings}
       savingsPercentage={savingsPercentage}
       formatCurrency={formatCurrency}
+      recommendation={recommendation}
     />
   </div>
 );
 
 /**
- * Location Breakdown Component
+ * Location Breakdown Table Component
  */
-const LocationBreakdown = ({ location, isLastLocation, formatCurrency }) => (
-  <div
-    key={location.location}
-    style={{
-      marginBottom: isLastLocation ? "0" : "20px",
-      paddingBottom: isLastLocation ? "0" : "15px",
-      borderBottom: isLastLocation ? "none" : "1px dashed #e2e8f0",
-    }}
-  >
+const LocationBreakdownTable = ({ breakdown, formatCurrency }) => (
+  <div className="location-breakdown">
     <h5
       style={{
-        margin: "0 0 10px 0",
         fontSize: "16px",
         fontWeight: "600",
         color: "#2d3748",
+        marginBottom: "10px",
       }}
     >
-      {location.location} ({location.visits} visits)
+      Regular Admission Breakdown by Location
     </h5>
-
     <table
       style={{
         width: "100%",
@@ -347,68 +384,65 @@ const LocationBreakdown = ({ location, isLastLocation, formatCurrency }) => (
         marginBottom: "10px",
       }}
     >
-      <tbody>
-        {location.details.map((detail, detailIndex) => (
-          <tr
-            key={detail.description}
+      <thead>
+        <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+          <th
             style={{
-              borderBottom:
-                detailIndex < location.details.length - 1
-                  ? "1px solid #f7fafc"
-                  : "none",
+              textAlign: "left",
+              padding: "8px 0",
+              fontSize: "14px",
+              color: "#718096",
             }}
           >
+            Location
+          </th>
+          <th
+            style={{
+              textAlign: "right",
+              padding: "8px 0",
+              fontSize: "14px",
+              color: "#718096",
+            }}
+          >
+            Cost
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {breakdown.map((location, index) => (
+          <tr key={index}>
             <td
               style={{
                 padding: "8px 0",
                 fontSize: "14px",
-                color: "#4a5568",
               }}
             >
-              {detail.description}
+              <div style={{ fontWeight: "500" }}>{location.location}</div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#718096",
+                  marginTop: "2px",
+                }}
+              >
+                {location.details.map((detail, idx) => (
+                  <div key={idx}>{detail.description}</div>
+                ))}
+              </div>
             </td>
             <td
               style={{
-                padding: "8px 0",
                 textAlign: "right",
-                fontFamily: "monospace",
-                fontSize: "14px",
+                padding: "8px 0",
+                fontSize: "15px",
                 fontWeight: "500",
-                color: "#4a5568",
+                fontFamily: "monospace",
               }}
             >
-              {formatCurrency(detail.cost)}
+              {formatCurrency(location.subtotal)}
             </td>
           </tr>
         ))}
-        <tr
-          style={{
-            backgroundColor: "#f7fafc",
-          }}
-        >
-          <td
-            style={{
-              padding: "10px 0",
-              fontSize: "15px",
-              fontWeight: "600",
-              color: "#2d3748",
-            }}
-          >
-            Subtotal for {location.location}
-          </td>
-          <td
-            style={{
-              padding: "10px 0",
-              textAlign: "right",
-              fontFamily: "monospace",
-              fontSize: "15px",
-              fontWeight: "600",
-              color: "#2d3748",
-            }}
-          >
-            {formatCurrency(location.subtotal)}
-          </td>
-        </tr>
       </tbody>
     </table>
   </div>
@@ -452,44 +486,152 @@ const AdmissionTotal = ({ grandTotal, formatCurrency }) => (
 );
 
 /**
- * Membership Comparison Component
+ * Membership Comparison Component - Enhanced to show cost breakdown
  */
-const MembershipComparison = ({ totalCost, formatCurrency }) => (
-  <div
-    className="membership-comparison"
-    style={{
-      marginTop: "15px",
-      paddingTop: "15px",
-      borderTop: "1px dashed #e2e8f0",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      backgroundColor: "#f0fff4",
-      padding: "15px",
-      borderRadius: "6px",
-    }}
-  >
+const MembershipComparison = ({ totalCost, recommendation, formatCurrency }) => {
+  // Check if this is a "Pay As You Go" recommendation
+  const isPayAsYouGo = recommendation?.bestMembershipType === "PayAsYouGo";
+  
+  if (isPayAsYouGo) {
+    // For Pay As You Go, there's no membership - just show regular admission
+    return (
+      <div
+        className="membership-comparison"
+        style={{
+          marginTop: "15px",
+          paddingTop: "15px",
+          borderTop: "1px dashed #e2e8f0",
+          backgroundColor: "#fff3cd",
+          padding: "15px",
+          borderRadius: "6px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: "700",
+            color: "#856404",
+            marginBottom: "10px",
+          }}
+        >
+          Pay As You Go (No Membership)
+        </div>
+        
+        <div style={{ fontSize: "14px", color: "#856404", marginBottom: "8px" }}>
+          Continue paying regular admission prices
+        </div>
+        
+        <div
+          style={{
+            fontFamily: "monospace",
+            fontSize: "18px",
+            fontWeight: "700",
+            color: "#856404",
+            borderTop: "1px solid #ffc107",
+            paddingTop: "8px",
+          }}
+        >
+          {formatCurrency(totalCost)}
+        </div>
+      </div>
+    );
+  }
+  
+  // Get the breakdown of membership costs
+  // Handle different membership types appropriately
+  let membershipBase = 0;
+  
+  if (recommendation?.bestMembershipType === "Welcome" && recommendation?.welcomeProgramOption) {
+    // For Welcome Program, use the basePrice from welcomeProgramOption
+    membershipBase = recommendation.welcomeProgramOption.basePrice || 75; // Welcome is typically $75
+  } else {
+    // For regular memberships, use baseMembershipPrice first, then fall back to other fields
+    membershipBase = recommendation?.baseMembershipPrice || 
+                    recommendation?.baseMembershipDiscount || 
+                    recommendation?.bestMembershipPromoCost || 0;
+    
+    // If still 0, try to find from costBreakdown
+    if (membershipBase === 0 && recommendation?.costBreakdown?.items) {
+      const membershipItem = recommendation.costBreakdown.items.find(item => 
+        item.label && (
+          item.label.includes("Membership") || 
+          item.label.includes("Science") ||
+          item.label.includes("DPKH") ||
+          item.label.includes("DPKR") ||
+          item.label.includes("Kids")
+        ) && !item.label.includes("Parking") && !item.label.includes("Cross")
+      );
+      if (membershipItem) {
+        membershipBase = membershipItem.cost || 0;
+      }
+    }
+  }
+  
+  const parkingCost = recommendation?.additionalCosts?.find(item => 
+    item.label && item.label.includes("Parking"))?.cost || 0;
+  const crossLocationCost = recommendation?.additionalCosts?.find(item => 
+    item.label && item.label.includes("Cross-Location"))?.cost || 0;
+  
+  return (
     <div
+      className="membership-comparison"
       style={{
-        fontSize: "16px",
-        fontWeight: "700",
-        color: "#2f855a",
+        marginTop: "15px",
+        paddingTop: "15px",
+        borderTop: "1px dashed #e2e8f0",
+        backgroundColor: "#f0fff4",
+        padding: "15px",
+        borderRadius: "6px",
       }}
     >
-      With Membership
+      <div
+        style={{
+          fontSize: "16px",
+          fontWeight: "700",
+          color: "#2f855a",
+          marginBottom: "10px",
+        }}
+      >
+        With {recommendation?.bestMembershipLabel || "Membership"}
+      </div>
+      
+      {/* Show breakdown of membership costs */}
+      <div style={{ fontSize: "14px", color: "#2f855a", marginBottom: "8px" }}>
+        {membershipBase > 0 ? (
+          <div>Membership: {formatCurrency(membershipBase)}</div>
+        ) : (
+          totalCost > 0 && (
+            <div>Total Membership Package: {formatCurrency(totalCost - parkingCost - crossLocationCost)}</div>
+          )
+        )}
+        {parkingCost > 0 && (
+          <div>Parking: {formatCurrency(parkingCost)}</div>
+        )}
+        {crossLocationCost > 0 && (
+          <div>Cross-location visits: {formatCurrency(crossLocationCost)}</div>
+        )}
+        {totalCost === 0 && (
+          <div style={{ color: "#e53e3e", fontStyle: "italic" }}>
+            Error: Unable to calculate membership costs. Please check console for details.
+          </div>
+        )}
+      </div>
+      
+      <div
+        style={{
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontWeight: "700",
+          color: "#38a169",
+          borderTop: "1px solid #9ae6b4",
+          paddingTop: "8px",
+        }}
+      >
+        {formatCurrency(totalCost)}
+      </div>
     </div>
-    <div
-      style={{
-        fontFamily: "monospace",
-        fontSize: "18px",
-        fontWeight: "700",
-        color: "#38a169",
-      }}
-    >
-      {formatCurrency(totalCost)}
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * Savings Callout Component
@@ -498,52 +640,100 @@ const SavingsCallout = ({
   totalSavings,
   savingsPercentage,
   formatCurrency,
-}) => (
-  <div
-    className="savings-callout"
-    style={{
-      marginTop: "15px",
-      textAlign: "center",
-      backgroundColor: "#ebf8ff",
-      padding: "15px",
-      borderRadius: "6px",
-      border: "1px solid #bee3f8",
-    }}
-  >
+  recommendation,  // Add recommendation prop
+}) => {
+  const isPayAsYouGo = recommendation?.bestMembershipType === "PayAsYouGo";
+  
+  if (isPayAsYouGo) {
+    return (
+      <div
+        className="savings-callout"
+        style={{
+          marginTop: "15px",
+          textAlign: "center",
+          backgroundColor: "#fff3cd",
+          padding: "15px",
+          borderRadius: "6px",
+          border: "1px solid #ffc107",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: "600",
+            color: "#856404",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <CheckIcon color="#856404" size={20} style={{ marginRight: "6px" }} />
+          Pay As You Go is Your Best Option
+        </div>
+        <div
+          style={{
+            fontSize: "14px",
+            color: "#856404",
+            marginTop: "5px",
+          }}
+        >
+          With your planned visit frequency, regular admission is more economical than membership.
+        </div>
+      </div>
+    );
+  }
+  
+  if (totalSavings <= 0) {
+    return null; // Don't show savings callout if no savings
+  }
+  
+  return (
     <div
+      className="savings-callout"
       style={{
-        fontSize: "16px",
-        fontWeight: "600",
-        color: "#2b6cb0",
-        marginBottom: "5px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        marginTop: "15px",
+        textAlign: "center",
+        backgroundColor: "#ebf8ff",
+        padding: "15px",
+        borderRadius: "6px",
+        border: "1px solid #bee3f8",
       }}
     >
-      <CheckIcon color="#2b6cb0" size={20} style={{ marginRight: "6px" }} />
-      Your Total Savings with Membership
+      <div
+        style={{
+          fontSize: "16px",
+          fontWeight: "600",
+          color: "#2b6cb0",
+          marginBottom: "5px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CheckIcon color="#2b6cb0" size={20} style={{ marginRight: "6px" }} />
+        Your Total Savings with Membership
+      </div>
+      <div
+        style={{
+          fontSize: "24px",
+          fontWeight: "700",
+          color: "#2c5282",
+        }}
+      >
+        {formatCurrency(totalSavings)}
+      </div>
+      <div
+        style={{
+          fontSize: "16px",
+          color: "#4299e1",
+          marginTop: "5px",
+        }}
+      >
+        That's {savingsPercentage}% off regular admission prices!
+      </div>
     </div>
-    <div
-      style={{
-        fontSize: "24px",
-        fontWeight: "700",
-        color: "#2c5282",
-      }}
-    >
-      {formatCurrency(totalSavings)}
-    </div>
-    <div
-      style={{
-        fontSize: "16px",
-        color: "#4299e1",
-        marginTop: "5px",
-      }}
-    >
-      That's {savingsPercentage}% off regular admission prices!
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * Helper function to generate detailed admission breakdown
