@@ -304,6 +304,10 @@ function App() {
       // Use a small delay to ensure UI updates
       const timeoutId = setTimeout(() => {
         try {
+          console.log("🟡 Starting calculation with data:", {
+            adultCount: state.adultCount, childrenCount: state.childrenCount,
+            scienceVisits: state.scienceVisits, dpkhVisits: state.dpkhVisits, dpkrVisits: state.dpkrVisits
+          });
           const recommendation = MembershipPriceCalculator.calculateMembershipCosts(
             {
               adultCount: state.adultCount,
@@ -320,6 +324,9 @@ function App() {
             }
           );
 
+          console.log("🟢 Calculation completed! Result:", recommendation);
+          
+          // Calculate primary location icon
           // Calculate primary location icon
           const primaryLocationIcon =
             AdmissionCostCalculator.determinePrimaryLocation(
@@ -364,7 +371,7 @@ function App() {
             });
           }
         } catch (error) {
-          console.error("Error calculating recommendation:", error);
+          console.error("🔴 CALCULATION ERROR:", error);
           // Handle error appropriately
           if (isMounted.current) {
             dispatch({
