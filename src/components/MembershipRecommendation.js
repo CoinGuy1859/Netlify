@@ -1,4 +1,5 @@
-// src/components/MembershipRecommendation.js - COMPREHENSIVE USEFUL VERSION
+// components/MembershipRecommendation.js - COMPREHENSIVE VERSION
+// This directly replaces the simplified version to fix the inadequate content issue
 import React, { useState, useMemo, useCallback } from "react";
 
 /**
