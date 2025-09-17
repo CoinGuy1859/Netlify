@@ -308,6 +308,7 @@ function App() {
             adultCount: state.adultCount, childrenCount: state.childrenCount,
             scienceVisits: state.scienceVisits, dpkhVisits: state.dpkhVisits, dpkrVisits: state.dpkrVisits
           });
+          console.log("🟡 Starting calculation...");
           const recommendation = MembershipPriceCalculator.calculateMembershipCosts(
             {
               adultCount: state.adultCount,
@@ -325,8 +326,6 @@ function App() {
           );
 
           console.log("🟢 Calculation completed! Result:", recommendation);
-          
-          // Calculate primary location icon
           // Calculate primary location icon
           const primaryLocationIcon =
             AdmissionCostCalculator.determinePrimaryLocation(
