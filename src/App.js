@@ -1,3 +1,4 @@
+// App.js - FIXED VERSION TO PREVENT INFINITE LOOP
 import React, { useReducer, useCallback, useEffect, useRef } from "react";
 import { formatCurrency, capValue } from "./helpers/calculationHelpers";
 import {
@@ -295,7 +296,8 @@ function App() {
     };
   }, []);
 
-  // Calculate membership recommendation when needed
+  // FIXED: Calculate membership recommendation when needed
+  // Only depend on the specific state values we actually need to watch
   useEffect(() => {
     if (state.needsRecommendationUpdate && state.currentStep === 3) {
       console.log("🟡 useEffect triggered! Starting recommendation calculation...");
@@ -307,27 +309,29 @@ function App() {
         console.log("🟡 setTimeout started, about to calculate...");
         try {
           console.log("🟡 Starting calculation with data:", {
-            adultCount: state.adultCount, childrenCount: state.childrenCount,
-            scienceVisits: state.scienceVisits, dpkhVisits: state.dpkhVisits, dpkrVisits: state.dpkrVisits
+            adultCount: state.adultCount, 
+            childrenCount: state.childrenCount,
+            scienceVisits: state.scienceVisits, 
+            dpkhVisits: state.dpkhVisits, 
+            dpkrVisits: state.dpkrVisits
           });
-          console.log("🟡 Starting calculation...");
-          const recommendation = MembershipPriceCalculator.calculateMembershipCosts(
-            {
-              adultCount: state.adultCount,
-              childrenCount: state.childrenCount,
-              childAges: state.childAges,
-              scienceVisits: state.scienceVisits,
-              dpkhVisits: state.dpkhVisits,
-              dpkrVisits: state.dpkrVisits,
-              isRichmondResident: state.isRichmondResident,
-              needsFlexibility: state.needsFlexibility,
-              isWelcomeEligible: state.isWelcomeEligible,
-              includeParking: state.includeParking,
-              discountType: state.discountType, // Pass discount type to calculator
-            }
-          );
+          
+          const recommendation = MembershipPriceCalculator.calculateMembershipCosts({
+            adultCount: state.adultCount,
+            childrenCount: state.childrenCount,
+            childAges: state.childAges,
+            scienceVisits: state.scienceVisits,
+            dpkhVisits: state.dpkhVisits,
+            dpkrVisits: state.dpkrVisits,
+            isRichmondResident: state.isRichmondResident,
+            needsFlexibility: state.needsFlexibility,
+            isWelcomeEligible: state.isWelcomeEligible,
+            includeParking: state.includeParking,
+            discountType: state.discountType,
+          });
 
           console.log("🟢 Calculation completed! Result:", recommendation);
+          
           // Calculate primary location icon
           const primaryLocationIcon =
             AdmissionCostCalculator.determinePrimaryLocation(
@@ -381,8 +385,7 @@ function App() {
             });
             dispatch({
               type: ACTION_TYPES.SET_ANNOUNCEMENT,
-              payload:
-                "An error occurred while calculating your recommendation. Please check your inputs and try again.",
+              payload: "An error occurred while calculating your recommendation. Please check your inputs and try again.",
             });
           }
         }
@@ -391,7 +394,23 @@ function App() {
       // Cleanup timeout on unmount or when effect re-runs
       return () => clearTimeout(timeoutId);
     }
-  }, [state.needsRecommendationUpdate, state.currentStep, state]);
+  }, [
+    // FIXED: Only include specific state values that trigger recalculation
+    // Removed 'state' from dependencies to prevent infinite loop
+    state.needsRecommendationUpdate, 
+    state.currentStep,
+    state.adultCount,
+    state.childrenCount,
+    state.childAges,
+    state.scienceVisits,
+    state.dpkhVisits,
+    state.dpkrVisits,
+    state.isRichmondResident,
+    state.needsFlexibility,
+    state.isWelcomeEligible,
+    state.includeParking,
+    state.discountType
+  ]);
 
   // Handler functions
   const handleNextStep = useCallback(() => {
@@ -493,11 +512,13 @@ function App() {
           includeParking={state.includeParking}
           discountType={state.discountType}
           errors={state.errors}
+          announcement={state.announcement}
+          isCalculating={state.isCalculating}
           membershipRecommendation={state.membershipRecommendation}
           primaryLocationIcon={state.primaryLocationIcon}
           visitDistributionData={state.visitDistributionData}
-          formatCurrency={formatCurrency}
-          isCalculating={state.isCalculating}
+          onNextStep={handleNextStep}
+          onPrevStep={handlePrevStep}
           onAdultCountChange={handleAdultCountChange}
           onChildrenCountChange={handleChildrenCountChange}
           onChildAgeChange={handleChildAgeChange}
@@ -505,17 +526,29 @@ function App() {
           onDpkhVisitsChange={handleDpkhVisitsChange}
           onDpkrVisitsChange={handleDpkrVisitsChange}
           onRichmondResidentChange={handleRichmondResidentChange}
-          onNeedsFlexibilityChange={handleNeedsFlexibilityChange}
+          onFlexibilityChange={handleNeedsFlexibilityChange}
           onWelcomeEligibleChange={handleWelcomeEligibleChange}
           onIncludeParkingChange={handleIncludeParkingChange}
           onDiscountTypeChange={handleDiscountTypeChange}
-          onNextStep={handleNextStep}
-          onPrevStep={handlePrevStep}
           onReset={handleReset}
+          formatCurrency={formatCurrency}
         />
 
-        {/* Situation breakdown guide */}
-        <SituationBreakdown primaryLocationIcon={state.primaryLocationIcon} />
+        {/* Bottom situation breakdown */}
+        {state.membershipRecommendation && (
+          <SituationBreakdown
+            adultCount={state.adultCount}
+            childrenCount={state.childrenCount}
+            childAges={state.childAges}
+            scienceVisits={state.scienceVisits}
+            dpkhVisits={state.dpkhVisits}
+            dpkrVisits={state.dpkrVisits}
+            isRichmondResident={state.isRichmondResident}
+            membershipRecommendation={state.membershipRecommendation}
+            formatCurrency={formatCurrency}
+            primaryLocationIcon={state.primaryLocationIcon}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );
