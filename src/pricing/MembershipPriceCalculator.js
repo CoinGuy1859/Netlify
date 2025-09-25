@@ -1,7 +1,7 @@
 // src/pricing/MembershipPriceCalculator.js
 import PricingConfig from "./PricingConfig";
 import AdmissionCostCalculator from "./AdmissionCostCalculator";
-import DiscountService from "../services/DiscountService";
+import DiscountService from "./DiscountService";
 
 /**
  * MembershipPriceCalculator - Enhanced with Multi-Museum Logic
@@ -450,3 +450,4 @@ const MembershipPriceCalculator = {
 };
 
 export default MembershipPriceCalculator;
+
