@@ -1,6 +1,6 @@
 // pricing/MembershipPriceCalculator.js
 import { PricingConfig } from "./PricingConfig";
-import AdmissionCostCalculator from "./AdmissionCostCalculator";
+import { AdmissionCostCalculator } from "./AdmissionCostCalculator";
 
 /**
  * Membership Price Calculator - ENHANCED VERSION WITH MULTI-MUSEUM LOGIC
@@ -72,8 +72,9 @@ export const MembershipPriceCalculator = {
       });
 
       // Calculate regular admission costs for comparison
-      const regularAdmissionCost = AdmissionCostCalculator.calculateRegularAdmission({
+      const regularAdmissionCost = AdmissionCostCalculator.calculateRegularAdmissionCost({
         adultCount,
+        childrenCount,
         childAges,
         scienceVisits,
         dpkhVisits,
@@ -116,7 +117,7 @@ export const MembershipPriceCalculator = {
         // (Only applies to single-location memberships)
         if (type !== "ScienceKids") {
           // For Science membership, add guest costs for Kids locations
-          if (type === "Science") {
+          if (type === "Science" || type === "ScienceBasic") {
             if (dpkhVisits > 0) {
               const dpkhGuestCost = dpkhVisits * familySize * PricingConfig.AdmissionPrices.DPKH.adult * 0.75;
               additionalCosts.push({
@@ -128,8 +129,8 @@ export const MembershipPriceCalculator = {
             }
             if (dpkrVisits > 0) {
               const dpkrPrice = isRichmondResident ? 
-                PricingConfig.AdmissionPrices.DPKR.resident.adult :
-                PricingConfig.AdmissionPrices.DPKR.standard.adult;
+                PricingConfig.AdmissionPrices.DPKR.richmondResident : 
+                PricingConfig.AdmissionPrices.DPKR.adult;
               const dpkrGuestCost = dpkrVisits * familySize * dpkrPrice * 0.75;
               additionalCosts.push({
                 label: "Guest admission at Kids-Rockingham (25% off)",
@@ -142,19 +143,18 @@ export const MembershipPriceCalculator = {
           // For DPKH membership, add guest costs for Science and DPKR
           else if (type === "DPKH") {
             if (scienceVisits > 0) {
-              const scienceAdultCost = scienceVisits * adultCount * PricingConfig.AdmissionPrices.Science.adult * 0.75;
-              const scienceChildCost = scienceVisits * eligibleChildren * PricingConfig.AdmissionPrices.Science.child * 0.75;
+              const scienceGuestCost = scienceVisits * familySize * PricingConfig.AdmissionPrices.Science.adult * 0.5;
               additionalCosts.push({
-                label: "Guest admission at Science (25% off)",
-                cost: scienceAdultCost + scienceChildCost,
+                label: "Guest admission at Science (50% off)",
+                cost: scienceGuestCost,
                 details: `${scienceVisits} visits × ${familySize} people`
               });
-              totalAdditional += scienceAdultCost + scienceChildCost;
+              totalAdditional += scienceGuestCost;
             }
             if (dpkrVisits > 0) {
-              const dpkrPrice = isRichmondResident ?
-                PricingConfig.AdmissionPrices.DPKR.resident.adult :
-                PricingConfig.AdmissionPrices.DPKR.standard.adult;
+              const dpkrPrice = isRichmondResident ? 
+                PricingConfig.AdmissionPrices.DPKR.richmondResident : 
+                PricingConfig.AdmissionPrices.DPKR.adult;
               const dpkrGuestCost = dpkrVisits * familySize * dpkrPrice * 0.75;
               additionalCosts.push({
                 label: "Guest admission at Kids-Rockingham (25% off)",
@@ -167,14 +167,13 @@ export const MembershipPriceCalculator = {
           // For DPKR membership, add guest costs for Science and DPKH
           else if (type === "DPKR") {
             if (scienceVisits > 0) {
-              const scienceAdultCost = scienceVisits * adultCount * PricingConfig.AdmissionPrices.Science.adult * 0.75;
-              const scienceChildCost = scienceVisits * eligibleChildren * PricingConfig.AdmissionPrices.Science.child * 0.75;
+              const scienceGuestCost = scienceVisits * familySize * PricingConfig.AdmissionPrices.Science.adult * 0.5;
               additionalCosts.push({
-                label: "Guest admission at Science (25% off)",
-                cost: scienceAdultCost + scienceChildCost,
+                label: "Guest admission at Science (50% off)",
+                cost: scienceGuestCost,
                 details: `${scienceVisits} visits × ${familySize} people`
               });
-              totalAdditional += scienceAdultCost + scienceChildCost;
+              totalAdditional += scienceGuestCost;
             }
             if (dpkhVisits > 0) {
               const dpkhGuestCost = dpkhVisits * familySize * PricingConfig.AdmissionPrices.DPKH.adult * 0.75;
@@ -193,88 +192,73 @@ export const MembershipPriceCalculator = {
           label,
           baseCost,
           additionalCosts,
-          totalAdditional,
           totalCost: baseCost + totalAdditional
         };
       };
 
-      // Determine primary location for single-location membership
+      // ENHANCED MULTI-MUSEUM LOGIC: Prioritize Science+Kids when visiting multiple locations
+      const membershipOptions = [];
+
+      // If visiting 2+ locations, prioritize Science+Kids membership
+      if (locationsVisited >= 2) {
+        const scienceKidsOption = calculateTotalCostForMembership("ScienceKids", "Discovery Place Science + Kids Membership");
+        if (scienceKidsOption) {
+          membershipOptions.push(scienceKidsOption);
+          console.log("✅ Multi-museum detected - evaluating Science+Kids membership");
+        }
+      }
+
+      // Always evaluate single-location memberships for comparison
+      // Determine primary location (most visits)
       let primaryLocation = "Science";
-      if (dpkhVisits > scienceVisits && dpkhVisits > dpkrVisits) {
+      if (dpkhVisits > scienceVisits && dpkhVisits >= dpkrVisits) {
         primaryLocation = "DPKH";
       } else if (dpkrVisits > scienceVisits && dpkrVisits > dpkhVisits) {
         primaryLocation = "DPKR";
       }
 
-      // Evaluate single-location membership based on primary visits
-      const singleLocationResult = calculateTotalCostForMembership(
-        primaryLocation,
-        primaryLocation === "Science" ? "Discovery Place Science Membership" :
-        primaryLocation === "DPKH" ? "Discovery Place Kids-Huntersville Membership" :
-        "Discovery Place Kids-Rockingham Membership"
-      );
-
-      if (singleLocationResult) {
-        bestMembershipType = singleLocationResult.type;
-        bestMembershipLabel = singleLocationResult.label;
-        bestMembershipCost = singleLocationResult.baseCost;
-        bestTotalCost = singleLocationResult.totalCost;
-        bestAdditionalCosts = singleLocationResult.additionalCosts;
-        
-        console.log("✅ Single-location option:", {
-          type: bestMembershipType,
-          totalCost: bestTotalCost
-        });
+      // Add Science Basic option if eligible (single adult only)
+      if (familySize === 1 && primaryLocation === "Science") {
+        const basicOption = calculateTotalCostForMembership("ScienceBasic", "Discovery Place Science Basic Membership");
+        if (basicOption) membershipOptions.push(basicOption);
       }
 
-      // CRITICAL: Always evaluate Science+Kids if visiting multiple locations
-      if (locationsVisited >= 2 && familySize >= 2) {
-        const multiMuseumResult = calculateTotalCostForMembership(
-          "ScienceKids",
-          "Discovery Place Science + Kids Membership"
-        );
+      // Add regular Science membership
+      if (primaryLocation === "Science" || scienceVisits > 0) {
+        const scienceOption = calculateTotalCostForMembership("Science", "Discovery Place Science Membership");
+        if (scienceOption) membershipOptions.push(scienceOption);
+      }
 
-        if (multiMuseumResult) {
-          console.log("✅ Multi-museum option:", {
-            type: "ScienceKids",
-            totalCost: multiMuseumResult.totalCost,
-            vs_single: bestTotalCost
-          });
+      // Add DPKH membership
+      if (primaryLocation === "DPKH" || dpkhVisits > 0) {
+        const dpkhOption = calculateTotalCostForMembership("DPKH", "Discovery Place Kids-Huntersville Membership");
+        if (dpkhOption) membershipOptions.push(dpkhOption);
+      }
 
-          // Recommend Science+Kids if it's cheaper OR if the difference is small
-          // but provides significantly more flexibility
-          const costDifference = multiMuseumResult.totalCost - bestTotalCost;
-          const percentDifference = Math.abs(costDifference / bestTotalCost) * 100;
+      // Add DPKR membership
+      if (primaryLocation === "DPKR" || dpkrVisits > 0) {
+        const dpkrOption = calculateTotalCostForMembership("DPKR", "Discovery Place Kids-Rockingham Membership");
+        if (dpkrOption) membershipOptions.push(dpkrOption);
+      }
 
-          // Recommend Science+Kids if:
-          // 1. It's cheaper
-          // 2. It's within 10% more expensive but visiting 3 locations
-          // 3. It's within 20% more expensive but total visits > 10
-          if (multiMuseumResult.totalCost < bestTotalCost ||
-              (locationsVisited === 3 && percentDifference < 10) ||
-              (totalVisits > 10 && percentDifference < 20)) {
-            bestMembershipType = "ScienceKids";
-            bestMembershipLabel = multiMuseumResult.label;
-            bestMembershipCost = multiMuseumResult.baseCost;
-            bestTotalCost = multiMuseumResult.totalCost;
-            bestAdditionalCosts = multiMuseumResult.additionalCosts;
-            
-            console.log("🎯 Recommending Science+Kids membership!");
-          }
+      // Find the best option
+      console.log("📊 Evaluating", membershipOptions.length, "membership options");
+      
+      membershipOptions.forEach(option => {
+        console.log(`  - ${option.label}: Base $${option.baseCost}, Total $${option.totalCost}`);
+        if (option.totalCost < bestTotalCost) {
+          bestMembershipType = option.type;
+          bestMembershipLabel = option.label;
+          bestMembershipCost = option.baseCost;
+          bestTotalCost = option.totalCost;
+          bestAdditionalCosts = option.additionalCosts;
         }
-      }
+      });
 
       // Apply discounts if applicable
       let finalMembershipCost = bestMembershipCost;
-      
-      // Apply Welcome Program if eligible (flat $75 rate)
-      if (isWelcomeEligible) {
-        finalMembershipCost = 75;
-        bestMembershipLabel += " (Welcome Program)";
-      }
-      // Apply educator/military discounts
-      else if (discountType) {
-        const discountAmount = discountType === 'military' && primaryLocation === 'DPKR' ? 30 : 20;
+      if (discountType && (discountType === 'educator' || discountType === 'military')) {
+        const discountAmount = discountType === 'military' ? 30 : 20;
         finalMembershipCost = Math.max(0, bestMembershipCost - discountAmount);
         bestMembershipLabel += discountType === 'military' ? " (Military Discount)" : " (Educator Discount)";
       }
