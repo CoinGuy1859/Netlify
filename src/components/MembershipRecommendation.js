@@ -1,9 +1,8 @@
-// components/MembershipRecommendation.js - COMPREHENSIVE VERSION
-// This directly replaces the simplified version to fix the inadequate content issue
+// src/components/MembershipRecommendation.js
 import React, { useState, useMemo, useCallback } from "react";
 
 /**
- * MembershipRecommendation component - Full-featured, useful version
+ * MembershipRecommendation component - Full-featured version
  * Provides comprehensive information families need to make membership decisions
  */
 const MembershipRecommendation = React.memo(
@@ -162,8 +161,9 @@ const MembershipRecommendation = React.memo(
  */
 const RecommendationCard = ({ recommendation, totalVisits, familySize, formatCurrency }) => {
   const membershipCost = recommendation.bestMembershipPromoCost || 
-                        recommendation.baseMembershipPrice || 0;
-  const savings = recommendation.totalSavings || 0;
+                        recommendation.baseMembershipPrice || 
+                        recommendation.bestMembershipCost || 0;
+  const savings = recommendation.bestMembershipSavings || 0;
 
   return (
     <div style={{
@@ -190,120 +190,93 @@ const RecommendationCard = ({ recommendation, totalVisits, familySize, formatCur
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          minWidth: "64px",
-          minHeight: "64px"
+          width: "60px",
+          height: "60px"
         }}>
-          <div style={{
-            color: "white",
-            fontSize: "16px",
-            fontWeight: "bold",
-            textAlign: "center"
-          }}>
-            ✨
-          </div>
+          <span style={{ fontSize: "32px" }}>⭐</span>
         </div>
-        
-        <div>
-          <div style={{ 
-            fontSize: "14px", 
-            fontWeight: "500", 
-            marginBottom: "4px",
-            opacity: 0.9
+        <div style={{ flex: 1 }}>
+          <h2 style={{ 
+            fontSize: "24px", 
+            fontWeight: "700", 
+            margin: "0 0 8px 0" 
           }}>
-            WE RECOMMEND
-          </div>
-          <div style={{ 
-            fontSize: "28px", 
-            fontWeight: "700"
+            {recommendation.bestMembershipLabel || "Membership Recommendation"}
+          </h2>
+          <p style={{ 
+            fontSize: "16px", 
+            margin: "0", 
+            opacity: "0.95" 
           }}>
-            {recommendation.bestMembershipLabel || "Discovery Place Science Membership"}
-          </div>
+            Perfect for your family of {familySize} with {totalVisits} annual visits
+          </p>
         </div>
       </div>
 
-      {/* Content */}
+      {/* Body */}
       <div style={{ padding: "32px" }}>
         <div style={{
           display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: "32px",
-          alignItems: "center"
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: "24px",
+          textAlign: "center"
         }}>
-          {/* Left: Details */}
           <div>
-            <h3 style={{
-              fontSize: "20px",
-              fontWeight: "600",
-              color: "#2d3748",
-              margin: "0 0 16px 0"
-            }}>
-              Perfect for Your Family
-            </h3>
-            <p style={{ 
-              fontSize: "16px", 
-              lineHeight: "1.6", 
-              margin: "0 0 20px 0", 
-              color: "#4a5568" 
-            }}>
-              Based on your {totalVisits} planned visits for {familySize} people, this membership 
-              provides the best value and gives you access to all the benefits Discovery Place has to offer.
-            </p>
-            
-            {savings > 0 && (
-              <div style={{
-                backgroundColor: "#f0fff4",
-                border: "1px solid #9ae6b4",
-                borderRadius: "8px",
-                padding: "16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px"
-              }}>
-                <span style={{ fontSize: "20px" }}>💰</span>
-                <div>
-                  <div style={{ fontWeight: "600", color: "#2f855a" }}>
-                    You'll save {formatCurrency(savings)} annually!
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#68d391" }}>
-                    Compared to paying regular admission for each visit
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right: Price */}
-          <div style={{
-            textAlign: "center",
-            padding: "24px",
-            backgroundColor: "#f7fafc",
-            borderRadius: "12px",
-            border: "1px solid #e2e8f0"
-          }}>
             <div style={{
-              fontSize: "14px",
-              fontWeight: "500",
-              color: "#718096",
-              marginBottom: "8px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px"
-            }}>
-              Annual Membership
-            </div>
-            <div style={{ 
-              fontSize: "36px", 
-              fontWeight: "700", 
+              fontSize: "32px",
+              fontWeight: "700",
               color: "#2d3748",
-              lineHeight: "1"
+              marginBottom: "8px",
+              fontFamily: "monospace"
             }}>
               {formatCurrency(membershipCost)}
             </div>
             <div style={{
-              fontSize: "12px",
-              color: "#a0aec0",
-              marginTop: "4px"
+              fontSize: "14px",
+              color: "#718096",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px"
             }}>
-              + tax
+              Annual Cost
+            </div>
+          </div>
+          
+          <div>
+            <div style={{
+              fontSize: "32px",
+              fontWeight: "700",
+              color: "#38a169",
+              marginBottom: "8px",
+              fontFamily: "monospace"
+            }}>
+              {formatCurrency(savings)}
+            </div>
+            <div style={{
+              fontSize: "14px",
+              color: "#718096",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px"
+            }}>
+              You Save
+            </div>
+          </div>
+          
+          <div>
+            <div style={{
+              fontSize: "32px",
+              fontWeight: "700",
+              color: "#4299e1",
+              marginBottom: "8px"
+            }}>
+              {recommendation.savingsPercentage || 0}%
+            </div>
+            <div style={{
+              fontSize: "14px",
+              color: "#718096",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px"
+            }}>
+              Discount
             </div>
           </div>
         </div>
@@ -317,14 +290,15 @@ const RecommendationCard = ({ recommendation, totalVisits, familySize, formatCur
  */
 const WhyThisMembership = ({ recommendation, scienceVisits, dpkhVisits, dpkrVisits, totalVisits, familySize }) => {
   const getVisitInsight = () => {
-    if (scienceVisits > dpkhVisits && scienceVisits > dpkrVisits) {
-      return `You plan to visit Discovery Place Science ${scienceVisits} times, making it your primary destination.`;
-    } else if (dpkhVisits > scienceVisits && dpkhVisits > dpkrVisits) {
-      return `You plan to visit Discovery Place Kids-Huntersville ${dpkhVisits} times, making it your primary destination.`;
-    } else if (dpkrVisits > 0) {
-      return `You're planning visits across multiple locations, with a focus on our Kids locations.`;
+    if (recommendation.bestMembershipType === "ScienceKids") {
+      return `You visit multiple Discovery Place locations regularly (${scienceVisits} Science visits, ${dpkhVisits} Kids-Huntersville visits${dpkrVisits > 0 ? `, ${dpkrVisits} Kids-Rockingham visits` : ''})`;
+    } else if (scienceVisits > dpkhVisits && scienceVisits > dpkrVisits) {
+      return `Science is your primary destination with ${scienceVisits} planned annual visits`;
+    } else if (dpkhVisits > dpkrVisits) {
+      return `Kids-Huntersville is your favorite with ${dpkhVisits} visits planned`;
+    } else {
+      return `Kids-Rockingham is your go-to location with ${dpkrVisits} visits across our locations.`;
     }
-    return `Based on your ${totalVisits} planned visits across our locations.`;
   };
 
   return (
@@ -398,27 +372,19 @@ const WhatsIncluded = ({ recommendation, familySize }) => {
     
     if (membershipType === "Science") {
       return [
-        `Unlimited admission for all ${familySize} family members`,
-        "50% off guest admission at Discovery Place Science",
-        "25% off admission at Kids-Huntersville and Kids-Rockingham",
-        "$8 flat-rate parking at Discovery Place Science (vs $18 regular)",
+        `Unlimited admission for all ${familySize} family members to Discovery Place Science`,
+        "50% off guest admission when you bring friends",
+        "$8 flat-rate parking (save $10 per visit)",
         "ASTC reciprocal benefits at 300+ science centers nationwide",
-        "Member-exclusive events and previews",
-        "10% discount on birthday parties and camps"
-      ];
-    } else if (membershipType === "DPKH") {
-      return [
-        `Unlimited admission for all ${familySize} family members`,
-        "50% off guest admission at Discovery Place Kids-Huntersville",
-        "25% off admission at Science and Kids-Rockingham",
+        "25% off admission at Kids-Huntersville and Kids-Rockingham",
         "Member-exclusive events and activities",
         "Priority registration for camps and programs",
         "10% discount on birthday parties"
       ];
-    } else if (membershipType === "DPKR") {
+    } else if (membershipType === "DPKH" || membershipType === "DPKR") {
       return [
-        `Unlimited admission for all ${familySize} family members`,
-        "50% off guest admission at Discovery Place Kids-Rockingham",
+        `Unlimited admission for all ${familySize} family members to ${membershipType === "DPKH" ? "Kids-Huntersville" : "Kids-Rockingham"}`,
+        "50% off guest admission when you bring friends",
         "25% off admission at Science and Kids-Huntersville",
         "Member-exclusive events and activities",
         "Priority registration for camps and programs",
@@ -496,15 +462,64 @@ const WhatsIncluded = ({ recommendation, familySize }) => {
 };
 
 /**
- * Cost Analysis Section
+ * Cost Analysis Section with Safety Checks
  */
 const CostAnalysis = ({ recommendation, totalVisits, formatCurrency }) => {
-  const membershipCost = recommendation.bestMembershipPromoCost || recommendation.baseMembershipPrice || 0;
+  const membershipCost = recommendation.bestMembershipPromoCost || 
+                         recommendation.baseMembershipPrice || 
+                         recommendation.bestMembershipCost || 0;
   const regularCost = recommendation.regularAdmissionCost || 0;
-  const savings = recommendation.totalSavings || 0;
+  const savings = recommendation.bestMembershipSavings || 0;
   const savingsPercent = regularCost > 0 ? Math.round((savings / regularCost) * 100) : 0;
 
-  if (!recommendation.costBreakdown || recommendation.costBreakdown.length === 0) {
+  // Safety check and normalization for costBreakdown
+  let costBreakdownArray = [];
+  
+  if (recommendation.costBreakdown) {
+    if (Array.isArray(recommendation.costBreakdown)) {
+      // It's already an array
+      costBreakdownArray = recommendation.costBreakdown;
+    } else if (recommendation.costBreakdown.items && Array.isArray(recommendation.costBreakdown.items)) {
+      // It has an items property that's an array
+      costBreakdownArray = recommendation.costBreakdown.items;
+    } else if (typeof recommendation.costBreakdown === 'object') {
+      // It's an object, convert it to array format
+      // Handle the old object format
+      if (recommendation.costBreakdown.membership !== undefined) {
+        costBreakdownArray.push({
+          label: recommendation.bestMembershipLabel || "Membership",
+          description: "Annual membership",
+          cost: recommendation.costBreakdown.membership
+        });
+      }
+      if (recommendation.costBreakdown.parking && recommendation.costBreakdown.parking > 0) {
+        costBreakdownArray.push({
+          label: "Parking",
+          description: "Annual parking costs",
+          cost: recommendation.costBreakdown.parking
+        });
+      }
+      if (recommendation.costBreakdown.guestAdmissions && recommendation.costBreakdown.guestAdmissions > 0) {
+        costBreakdownArray.push({
+          label: "Guest Admissions",
+          description: "Additional guest costs",
+          cost: recommendation.costBreakdown.guestAdmissions
+        });
+      }
+    }
+  }
+  
+  // If we still don't have a breakdown, create a minimal one
+  if (costBreakdownArray.length === 0 && membershipCost > 0) {
+    costBreakdownArray.push({
+      label: recommendation.bestMembershipLabel || "Membership",
+      description: "Annual membership cost",
+      cost: membershipCost
+    });
+  }
+
+  // Don't render if there's no breakdown
+  if (costBreakdownArray.length === 0) {
     return null;
   }
 
@@ -535,13 +550,13 @@ const CostAnalysis = ({ recommendation, totalVisits, formatCurrency }) => {
         }}>
           Membership Cost Breakdown:
         </h4>
-        {recommendation.costBreakdown.map((item, index) => (
+        {costBreakdownArray.map((item, index) => (
           <div key={index} style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             padding: "8px 0",
-            borderBottom: index < recommendation.costBreakdown.length - 1 ? "1px solid #f7fafc" : "none",
+            borderBottom: index < costBreakdownArray.length - 1 ? "1px solid #f7fafc" : "none",
           }}>
             <span style={{ 
               color: "#4a5568", 
@@ -593,10 +608,10 @@ const CostAnalysis = ({ recommendation, totalVisits, formatCurrency }) => {
             {formatCurrency(regularCost)}
           </div>
         </div>
-
+        
         <div style={{
           backgroundColor: "#f0fff4",
-          border: "1px solid #c6f6d5",
+          border: "1px solid #9ae6b4",
           borderRadius: "8px",
           padding: "16px",
           textAlign: "center"
@@ -619,10 +634,10 @@ const CostAnalysis = ({ recommendation, totalVisits, formatCurrency }) => {
             {formatCurrency(membershipCost)}
           </div>
         </div>
-
+        
         <div style={{
-          backgroundColor: "#ebf4ff",
-          border: "1px solid #bee3f8",
+          backgroundColor: "#ebf8ff",
+          border: "1px solid #90cdf4",
           borderRadius: "8px",
           padding: "16px",
           textAlign: "center"
@@ -646,11 +661,11 @@ const CostAnalysis = ({ recommendation, totalVisits, formatCurrency }) => {
           </div>
           {savingsPercent > 0 && (
             <div style={{
-              fontSize: "11px",
+              fontSize: "12px",
               color: "#3182ce",
-              marginTop: "2px"
+              marginTop: "4px"
             }}>
-              ({savingsPercent}% off)
+              ({savingsPercent}% saved)
             </div>
           )}
         </div>
@@ -674,13 +689,13 @@ const AdditionalSavings = ({ recommendation, formatCurrency }) => {
       <h3 style={{ 
         fontSize: "20px", 
         fontWeight: "600", 
-        margin: "0 0 16px 0", 
-        color: "#2f855a" 
+        margin: "0 0 20px 0", 
+        color: "#22543d" 
       }}>
-        Even More Ways You'll Save
+        Additional Ways You'll Save
       </h3>
       
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
         <div>
           <div style={{
             fontSize: "16px",
@@ -688,7 +703,7 @@ const AdditionalSavings = ({ recommendation, formatCurrency }) => {
             color: "#2f855a",
             marginBottom: "8px"
           }}>
-            🎫 Guest Discounts
+            🎟️ Guest Discounts
           </div>
           <p style={{
             fontSize: "14px",
@@ -696,7 +711,26 @@ const AdditionalSavings = ({ recommendation, formatCurrency }) => {
             lineHeight: "1.4",
             margin: "0"
           }}>
-            Bring friends and family for 50% off their admission. Great for birthday parties and special occasions!
+            Save 50% when bringing friends and family. Perfect for playdates and birthday celebrations!
+          </p>
+        </div>
+        
+        <div>
+          <div style={{
+            fontSize: "16px",
+            fontWeight: "500",
+            color: "#2f855a",
+            marginBottom: "8px"
+          }}>
+            🎂 Birthday Party Savings
+          </div>
+          <p style={{
+            fontSize: "14px",
+            color: "#276749",
+            lineHeight: "1.4",
+            margin: "0"
+          }}>
+            Get 10% off birthday party packages at any location. Great for birthday parties and special occasions!
           </p>
         </div>
         
