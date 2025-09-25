@@ -12,12 +12,26 @@ const MembershipPriceCalculator = {
    * Get base membership price based on type and family size
    */
   getMembershipPrice(membershipType, familySize) {
-    const prices = PricingConfig.membershipPrices[membershipType];
-    if (!prices) return 0;
+    // Fix 1: Use correct property name (capital M)
+    const prices = PricingConfig.MembershipPrices[membershipType];
+    if (!prices) {
+      console.warn(`No pricing found for membership type: ${membershipType}`);
+      return 0;
+    }
 
-    if (familySize <= 4) return prices.family4;
-    if (familySize <= 6) return prices.family6;
-    return prices.family7plus;
+    // Fix 2: Use array indexing based on family size
+    // The array is 0-indexed, so subtract 1 from familySize
+    // Cap the index to prevent out-of-bounds access
+    const priceIndex = Math.min(Math.max(familySize - 1, 0), prices.length - 1);
+    const price = prices[priceIndex];
+    
+    // Handle cases where certain memberships don't support specific family sizes
+    if (price === 0 && familySize === 1 && ["DPKH", "DPKR", "ScienceKids"].includes(membershipType)) {
+      console.warn(`${membershipType} membership doesn't support 1-person memberships`);
+      return 0;
+    }
+    
+    return price || 0;
   },
 
   /**
